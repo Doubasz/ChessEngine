@@ -36,6 +36,7 @@ class Chess{
         Button* getButton(std::string name);
         void runNewGame();
         uint64_t perft(int depth);
+        uint64_t dividePerft(int depth);
         void runPerft();
 };   
 

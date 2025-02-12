@@ -16,8 +16,8 @@ Board::Board(){
 
     //  Using FEN we can write any position and compute it easily 
 
-    string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    //string startingPosition = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+    //string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    string startingPosition = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
     //string startingPosition = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
     //string startingPosition = "R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1";
 
@@ -672,13 +672,25 @@ void Board::tryMakeMove(Move move){
         case B_PROMOTION:
         case R_PROMOTION:
         case Q_PROMOTION:{
-            
+            int pieceChoosed = (move.type == Q_PROMOTION) ? QUEEN : (move.type == R_PROMOTION) ? ROOK : (move.type == B_PROMOTION) ? BISHOP : (move.type == N_PROMOTION) ? KNIGHT : QUEEN;
+            target.setPiece(pieceChoosed, start.color);
+            start.setPiece(NONE, -1);
+            std::replace(posOfPieces.begin(), posOfPieces.end(), start.currentPos, target.currentPos); 
+
             break;
         }
         case N_PROMOTION_CAPTURE:
         case B_PROMOTION_CAPTURE:
         case R_PROMOTION_CAPTURE:
         case Q_PROMOTION_CAPTURE:{
+            int pieceChoosed = (move.type == Q_PROMOTION) ? QUEEN : (move.type == R_PROMOTION) ? ROOK : (move.type == B_PROMOTION) ? BISHOP : (move.type == N_PROMOTION) ? KNIGHT : NONE;
+
+            posOfPieces.erase(std::remove(posOfPieces.begin(), posOfPieces.end(), target.currentPos), posOfPieces.end());
+            std::replace(posOfPieces.begin(), posOfPieces.end(), start.currentPos, target.currentPos);
+
+            target.setPiece(pieceChoosed, start.color);
+            start.setPiece(NONE, -1); 
+
             break;
         }
     }

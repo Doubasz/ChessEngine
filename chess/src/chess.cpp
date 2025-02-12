@@ -556,7 +556,7 @@ void Chess::runPerft(){
     int limit = 5;
 
     for(int depth = 1; depth <= limit; depth++){
-        uint64_t nodeSearched = perft(depth);
+        uint64_t nodeSearched = dividePerft(depth);
         cout << "Depth " << depth << ": " << nodeSearched << " moves\n";
     }
 }
@@ -565,7 +565,7 @@ uint64_t Chess::perft(int depth){
     if(depth == 0) return 1;
 
     Move moves[256];
-    uint64_t totalMoves = 0;
+    uint64_t totalNodes = 0;
 
     int nbMoves = board.getAllMoves(moves, 256);
 
@@ -576,14 +576,35 @@ uint64_t Chess::perft(int depth){
         }
     }*/
         
-    for(int i = 0; i < nbMoves; i++){
+
+    for (int i = 0; i < nbMoves; i++) {
         board.makeMove(moves[i]);
-        totalMoves += perft(depth - 1);
+        totalNodes += perft(depth - 1);
         board.undoMove(moves[i]);
 
     }
 
-    return totalMoves;
+    return totalNodes;
 }
 
+uint64_t Chess::dividePerft(int depth) {
+    if (depth == 0) return 1;
+
+    Move moves[256];
+    uint64_t totalNodes = 0;
+
+    int nbMoves = board.getAllMoves(moves, 256);
+
+    for (int i = 0; i < nbMoves; i++) {
+        board.makeMove(moves[i]);
+        uint64_t nodes = perft(depth - 1);
+        board.undoMove(moves[i]);
+
+        std::cout << moves[i].moveToAlbr() << ": " << nodes << std::endl;
+        totalNodes += nodes;
+    }
+
+    std::cout << "Total: " << totalNodes << std::endl;
+    return totalNodes;
+}
 
