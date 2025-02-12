@@ -374,11 +374,6 @@ void Board::generateMoves(Tile& tile){
 
     //  Capturing Moves of a Pawn
 
-    auto addCaptureSquare = [&](const Position& pos){
-        if(notOutOfBonds(pos) && tile.isEnnemy(tiles[pos.x][pos.y])){
-            targetSquares.push_back({CAPTURE, startingSquare, pos, tiles[pos.x][pos.y].piece});
-        }
-    };
 
     switch(tile.piece){
 
@@ -392,7 +387,16 @@ void Board::generateMoves(Tile& tile){
             Position forward = {startingSquare.x + direction, startingSquare.y};
 
             if(notOutOfBonds(forward) && tiles[forward.x][forward.y].piece == NONE){
-                targetSquares.push_back({QUIET, startingSquare, forward});
+                if(forward.x == 7 || forward.x == 0){
+                    targetSquares.push_back({Q_PROMOTION, startingSquare, forward});
+                    targetSquares.push_back({R_PROMOTION, startingSquare, forward});
+                    targetSquares.push_back({B_PROMOTION, startingSquare, forward});
+                    targetSquares.push_back({N_PROMOTION, startingSquare, forward});
+                }
+                else{
+                    targetSquares.push_back({QUIET, startingSquare, forward});
+                }
+                
 
                 //  if the pawn never moved he can move up 2 squares
                 if(tiles[forward.x + direction][forward.y].piece == NONE && tile.neverMoved){
@@ -407,8 +411,26 @@ void Board::generateMoves(Tile& tile){
             if(captureLeft == enPassantTarget && tile.isEnnemy(tiles[captureLeft.x - direction][captureLeft.y])) targetSquares.push_back({EP_CAPTURE, startingSquare, captureLeft});
             if(captureRight == enPassantTarget && tile.isEnnemy(tiles[captureRight.x - direction][captureRight.y])) targetSquares.push_back({EP_CAPTURE, startingSquare, captureRight});
 
-            addCaptureSquare(captureLeft);
-            addCaptureSquare(captureRight);
+
+            if(notOutOfBonds(captureLeft) && tile.isEnnemy(tiles[captureLeft.x][captureLeft.y])){
+                if(captureLeft.x == 7 || captureLeft.x == 0){
+                    targetSquares.push_back({Q_PROMOTION_CAPTURE, startingSquare, captureLeft, tiles[captureLeft.x][captureLeft.y].piece});
+                    targetSquares.push_back({R_PROMOTION_CAPTURE, startingSquare, captureLeft, tiles[captureLeft.x][captureLeft.y].piece});
+                    targetSquares.push_back({B_PROMOTION_CAPTURE, startingSquare, captureLeft, tiles[captureLeft.x][captureLeft.y].piece});
+                    targetSquares.push_back({N_PROMOTION_CAPTURE, startingSquare, captureLeft, tiles[captureLeft.x][captureLeft.y].piece});
+                }
+                else targetSquares.push_back({CAPTURE, startingSquare, captureLeft, tiles[captureLeft.x][captureLeft.y].piece});
+            }
+
+            if(notOutOfBonds(captureRight) && tile.isEnnemy(tiles[captureRight.x][captureRight.y])){
+                if(captureRight.x == 7 || captureRight.x == 0){
+                    targetSquares.push_back({Q_PROMOTION_CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
+                    targetSquares.push_back({R_PROMOTION_CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
+                    targetSquares.push_back({B_PROMOTION_CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
+                    targetSquares.push_back({N_PROMOTION_CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
+                }
+                else targetSquares.push_back({CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
+            }
 
             break;
         }
@@ -649,7 +671,10 @@ void Board::tryMakeMove(Move move){
         case N_PROMOTION:
         case B_PROMOTION:
         case R_PROMOTION:
-        case Q_PROMOTION:
+        case Q_PROMOTION:{
+            
+            break;
+        }
         case N_PROMOTION_CAPTURE:
         case B_PROMOTION_CAPTURE:
         case R_PROMOTION_CAPTURE:
