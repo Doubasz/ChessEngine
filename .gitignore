@@ -4,12 +4,9 @@ build/
 *.obj
 *.exe
 
-# Old binaries built in-tree
-chess/chess
-chess/perft
-chessLibrary/chess
-chess2/bin/
-chess2/obj/
+# Binaries built in-tree by the makefile
+/chess
+/perft
 
 # Python
 __pycache__/

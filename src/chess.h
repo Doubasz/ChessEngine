@@ -31,13 +31,10 @@ class Chess{
         void doInput();
 
         Position getPiecePosInArray(Position posInBoard);
-        Position getClosestTile(Position p);
         bool isButtonClicked(Position mouse);
         void handleClick(Position mouse);
         Button* getButton(std::string name);
         void runNewGame();
-        uint64_t perft(int depth);
-        uint64_t dividePerft(int depth);
         void runPerft();
         void getFen();
         void printMoves();
@@ -46,7 +43,6 @@ class Chess{
 
 
 bool isInBoard(Position selectPos);
-bool isInTile(Position selectPos, Position tilePos);
 bool isPromotion(Tile target);
 bool isBetweenZone(Position posToVerify, SDL_Rect zone);
 

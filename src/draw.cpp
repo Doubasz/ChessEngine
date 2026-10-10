@@ -7,6 +7,26 @@
 #include <vector>
 #include <cstring>
 #include <iostream>
+#include <string>
+
+
+//  Indexed by piece + color - 1 (see Piece enum and WHITE/BLACK in tile.h)
+
+static const std::string TEXTURES_PATHS[NUM_PATHS] = {
+    WPAWN_PATH,
+    WKNIGHT_PATH,
+    WBISHOP_PATH,
+    WROOK_PATH,
+    WQUEEN_PATH,
+    WKING_PATH,
+    BPAWN_PATH,
+    BKNIGHT_PATH,
+    BBISHOP_PATH,
+    BROOK_PATH,
+    BQUEEN_PATH,
+    BKING_PATH,
+    UNDO_REDO,
+};
 
 
 
@@ -99,7 +119,7 @@ void drawBoard(SDL_Renderer*& renderer, Board& board, Tile* selectedPiece){
 void drawPieces(SDL_Renderer*& renderer, Board& board, std::vector<SDL_Texture*> textures){
     for(int i = 0; i < BOARD; i++){
         for(int j = 0; j < BOARD; j++){
-            SDL_Rect tile = SDL_Rect{board.posTiles[i][j].x, board.posTiles[i][j].y, TILESIZE, TILESIZE};
+            SDL_Rect tile = SDL_Rect{STARTING_POSX + j * TILESIZE, STARTING_POSY + i * TILESIZE, TILESIZE, TILESIZE};
 
             if (board.tiles[i][j].piece != 0) {
                 drawPiece(renderer, textures[(board.tiles[i][j].piece + board.tiles[i][j].color) - 1], tile);
