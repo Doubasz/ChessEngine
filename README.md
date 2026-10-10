@@ -1,1 +1,1 @@
-chess engine in c++ using sdl2
+chess engine in c++
