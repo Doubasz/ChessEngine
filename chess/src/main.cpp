@@ -6,7 +6,9 @@
 int main(void){
 
     Chess chess;
+
     chess.gameLoop();
+    //chess.runPerft();
 
     return 0;
 }

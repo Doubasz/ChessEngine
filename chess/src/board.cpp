@@ -16,8 +16,10 @@ Board::Board(){
 
     //  Using FEN we can write any position and compute it easily 
 
+    string startingPosition = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
     //string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    string startingPosition = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+    //string startingPosition = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8  ";
+    //string startingPosition = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
     //string startingPosition = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
     //string startingPosition = "R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1";
 
@@ -27,6 +29,8 @@ Board::Board(){
     //  Here I'm initialising the position in the window of the board, used in drag and drop (although not used now)
 
     Position startingPos = Position(STARTING_POSX, STARTING_POSY);
+    castlingRights = 15;
+    //lastCapturedPiece = NONE;
 
     for(int i = 0; i < BOARD; i++){
         startingPos.x = STARTING_POSX;
@@ -268,6 +272,8 @@ void Board::parseFENPosition(string position){
     tiles[0][7].neverMoved = (fenPosition[2].find('k') != string::npos) ? true : false;
     tiles[0][0].neverMoved = (fenPosition[2].find('q') != string::npos) ? true : false;
 
+    updateCastlingRights();
+
     //  En passant
     enPassantActive = (fenPosition[3].find('-') != string::npos) ? false : true;
 
@@ -399,9 +405,12 @@ void Board::generateMoves(Tile& tile){
                 
 
                 //  if the pawn never moved he can move up 2 squares
-                if(tiles[forward.x + direction][forward.y].piece == NONE && tile.neverMoved){
-                    targetSquares.push_back({D_PAWN_PUSH, startingSquare, {forward.x + direction, forward.y}});
+                if(tile.neverMoved){
+                    if(tiles[forward.x + direction][forward.y].piece == NONE){
+                        targetSquares.push_back({D_PAWN_PUSH, startingSquare, {forward.x + direction, forward.y}});
+                    }
                 }
+                
             }
 
 
@@ -429,7 +438,7 @@ void Board::generateMoves(Tile& tile){
                     targetSquares.push_back({B_PROMOTION_CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
                     targetSquares.push_back({N_PROMOTION_CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
                 }
-                else targetSquares.push_back({CAPTURE, startingSquare, captureRight, tiles[captureRight.x][captureRight.y].piece});
+                else targetSquares.push_back({CAPTURE, startingSquare, captureRight,tiles[captureRight.x][captureRight.y].piece});
             }
 
             break;
@@ -476,11 +485,11 @@ void Board::generateMoves(Tile& tile){
 
                     if(!tile.notBlockedBy(tiles[moving.x][moving.y])) break;
                     if(tile.isEnnemy(tiles[moving.x][moving.y])){
-                        targetSquares.push_back({CAPTURE, startingSquare, moving, tiles[moving.x][moving.y].piece});
+                        targetSquares.push_back({CAPTURE, startingSquare, moving, tiles[moving.x][moving.y].piece ,tile.neverMoved});
                         break;
                     }
 
-                    targetSquares.push_back({QUIET, startingSquare, moving});
+                    targetSquares.push_back({QUIET, startingSquare, moving, tile.neverMoved});
                 }
             }
             break;
@@ -495,46 +504,41 @@ void Board::generateMoves(Tile& tile){
 
                 if(notOutOfBonds(moving)){
                     if(tiles[moving.x][moving.y].piece == NONE){
-                        targetSquares.push_back({QUIET, startingSquare, moving});
+                        targetSquares.push_back({QUIET, startingSquare, moving, tile.neverMoved});
                     }
                     else if(tile.isEnnemy(tiles[moving.x][moving.y])){
-                        targetSquares.push_back({CAPTURE, startingSquare, moving, tiles[moving.x][moving.y].piece});
+                        targetSquares.push_back({CAPTURE, startingSquare, moving, tiles[moving.x][moving.y].piece, tile.neverMoved});
                     }
-                }
-                    
+                }               
             }
 
-            tile.legalMoves = targetSquares;
 
             if(tile.neverMoved){
-                tile.legalMoves = filterLegalMoves(tile);
 
                 int direction = 2;
 
                 Position castleKingSide = {startingSquare.x, startingSquare.y + direction};
                 Position castleQueenSide = {startingSquare.x, startingSquare.y - direction};
 
+                Tile aRook = tiles[castleQueenSide.x][castleQueenSide.y - 2];
+                Tile hRook = tiles[castleKingSide.x][castleKingSide.y + 1];
+
+                bool kingInCheck = isKingInCheck(tile.color);
+
                 
-                if(tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y])){
-
-                    if(tile.isInLegalMoves({QUIET, startingSquare, {castleKingSide.x, castleKingSide.y - 1}}) && tiles[castleKingSide.x][castleKingSide.y + 1].neverMoved){
-
-                        if(!isKingInCheck(tile.color)){
-                            tile.legalMoves.push_back({KCASTLE, startingSquare, castleKingSide});
-                        }
+                if(tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y]) && tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y - 1]) && hRook.piece == ROOK && hRook.neverMoved){
+                    if(!kingInCheck){
+                       targetSquares.push_back({KCASTLE, startingSquare, castleKingSide, tile.neverMoved});
                     }
                 }
-                if (tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y])){
-                    if(tile.isInLegalMoves({QUIET, startingSquare, {castleQueenSide.x, castleQueenSide.y + 1}}) && tiles[castleQueenSide.x][castleQueenSide.y - 2].neverMoved){
-                        if(!isKingInCheck(tile.color)){
-                            tile.legalMoves.push_back({QCASTLE, startingSquare, castleQueenSide});
-                        }
+
+                if (tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y]) && tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y + 1]) && aRook.piece == ROOK && aRook.neverMoved){
+                    if(!kingInCheck){
+                        targetSquares.push_back({QCASTLE, startingSquare, castleQueenSide, tile.neverMoved});
                     }
                 }
             }
             
-
-
             break;
         }
         default:
@@ -542,9 +546,10 @@ void Board::generateMoves(Tile& tile){
     }
 
     //  Ugly but works
-    if(tile.piece != KING){
+    /*if(tile.piece != KING){
         tile.legalMoves = targetSquares;
-    }
+    }*/
+    tile.legalMoves = targetSquares;
     
 }
 
@@ -603,6 +608,11 @@ void Board::tryMakeMove(Move move){
 
     Tile& start = tiles[move.start.x][move.start.y];
     Tile& target = tiles[move.target.x][move.target.y];
+
+    gameStateHistory.push(currentGameState);
+
+    lastEnPassant = enPassantTarget;
+    prevCastlingRights = castlingRights;
 
     switch(move.type){
         case QUIET:{
@@ -683,7 +693,7 @@ void Board::tryMakeMove(Move move){
         case B_PROMOTION_CAPTURE:
         case R_PROMOTION_CAPTURE:
         case Q_PROMOTION_CAPTURE:{
-            int pieceChoosed = (move.type == Q_PROMOTION) ? QUEEN : (move.type == R_PROMOTION) ? ROOK : (move.type == B_PROMOTION) ? BISHOP : (move.type == N_PROMOTION) ? KNIGHT : NONE;
+            int pieceChoosed = (move.type == Q_PROMOTION) ? QUEEN : (move.type == R_PROMOTION) ? ROOK : (move.type == B_PROMOTION) ? BISHOP : (move.type == N_PROMOTION) ? KNIGHT : QUEEN;
 
             posOfPieces.erase(std::remove(posOfPieces.begin(), posOfPieces.end(), target.currentPos), posOfPieces.end());
             std::replace(posOfPieces.begin(), posOfPieces.end(), start.currentPos, target.currentPos);
@@ -695,19 +705,78 @@ void Board::tryMakeMove(Move move){
         }
     }
 
-    if(enPassantActive && move.type != D_PAWN_PUSH){
+    if(move.type != D_PAWN_PUSH){
         enPassantActive = false;
         enPassantTarget = {-1, -1};
+    }
+
+    /*if(enPassantActive){
+        if(turnToMove == BLACK){
+            if(enPassantTarget.x == 2 && move.type != D_PAWN_PUSH){
+                enPassantActive = false;
+                enPassantTarget = {-1, -1};
+            }
+        }
+        else if (turnToMove == WHITE){
+            if(enPassantTarget.x == 5 && move.type != D_PAWN_PUSH){
+                enPassantActive = false;
+                enPassantTarget = {-1, -1};
+            }
+        }
+    }*/
+
+    if(start.neverMoved || target.neverMoved){
+        start.neverMoved = false;
+        target.neverMoved = false;
+    }
+
+    updateCastlingRights();
+
+    GameState newState = GameState(castlingRights, turnToMove, enPassantActive, enPassantTarget, nbMoves, nbHalfMoves);
+    currentGameState = newState;
+}
+
+
+void Board::updateCastlingRights(){
+
+    if(!tiles[0][4].neverMoved) castlingRights &= ~(BLACK_KINGSIDE | BLACK_QUEENSIDE);
+    if(!tiles[7][4].neverMoved) castlingRights &= ~(WHITE_KINGSIDE | WHITE_QUEENSIDE);
+
+    if(!tiles[0][0].neverMoved) castlingRights &= ~(BLACK_QUEENSIDE);
+    if(!tiles[0][7].neverMoved) castlingRights &= ~(BLACK_KINGSIDE);
+    if(!tiles[7][0].neverMoved) castlingRights &= ~(WHITE_QUEENSIDE);
+    if(!tiles[7][7].neverMoved) castlingRights &= ~(WHITE_KINGSIDE);
+}
+
+void Board::restoreCastlingRights(){
+
+    if(castlingRights & WHITE_KINGSIDE){
+        tiles[7][4].neverMoved = true;
+        tiles[7][7].neverMoved = true;
+    }
+    if(castlingRights & WHITE_QUEENSIDE){
+        tiles[7][4].neverMoved = true;
+        tiles[7][0].neverMoved = true;
+    }
+
+    if(castlingRights & BLACK_KINGSIDE){
+        tiles[0][4].neverMoved = true;
+        tiles[0][7].neverMoved = true;
+    }
+    if(castlingRights & BLACK_QUEENSIDE){
+        tiles[0][4].neverMoved = true;
+        tiles[0][0].neverMoved = true;
     }
 }
 
 
+
 void Board::makePromotion(Tile& target, int choice){
 
-        int pieceChoosed = (choice == 0) ? QUEEN : (choice == 1) ? ROOK : (choice == 2) ? BISHOP : (choice == 3) ? KNIGHT : NONE;
-        cout << "pieceChoosed: " << pieceChoosed << endl;
+    int pieceChoosed = (choice == 0) ? QUEEN : (choice == 1) ? ROOK : (choice == 2) ? BISHOP : (choice == 3) ? KNIGHT : NONE;
+    cout << "pieceChoosed: " << pieceChoosed << endl;
 
-        target.setPiece(pieceChoosed, target.color);
+    target.setPiece(pieceChoosed, target.color);
     
 }
 
@@ -726,6 +795,7 @@ void Board::makeMove(Move move){
         //while(!redoStack.empty()) redoStack.pop();
 
         //std::replace(posOfPieces.begin(), posOfPieces.end(), start.currentPos, target.currentPos);
+        //updateCastling();
         changeTurn();
 }
 
@@ -747,29 +817,39 @@ void Board::undoLastMove(){
     
 }
 
-void Board::undoMove(Move move){
+
+
+void Board::tryUndoMove(Move move){
 
     Tile& start = tiles[move.start.x][move.start.y];
     Tile& target = tiles[move.target.x][move.target.y];
+
+    if(lastEnPassant == Position{-1, -1}){
+        enPassantActive = false;
+    }
+    else enPassantActive = true;
+
+    enPassantTarget = lastEnPassant;
+
 
     switch(move.type){
         case QUIET:{
             start.setPiece(target);
             target.setPiece(NONE, -1);
-            std::replace(posOfPieces.begin(), posOfPieces.end(), target.currentPos, start.currentPos); 
+            std::replace(posOfPieces.begin(), posOfPieces.end(), target.currentPos, start.currentPos);
+
             break;
         }
         case D_PAWN_PUSH:{
 
-            
             start.setPiece(target);
             start.neverMoved = true;
 
             target.setPiece(NONE, -1);
             std::replace(posOfPieces.begin(), posOfPieces.end(), target.currentPos, start.currentPos);
             
-            enPassantActive = false;
-            enPassantTarget = {-1, -1};
+            /*enPassantActive = false;
+            enPassantTarget = {-1, -1};*/
 
             break;
         }
@@ -781,9 +861,13 @@ void Board::undoMove(Move move){
             int rookNewPos = (rookPosY > 0) ? -1 : 1;
 
             tiles[target.currentPos.x][target.currentPos.y + rookPosY].setPiece(ROOK, target.color);
+            tiles[target.currentPos.x][target.currentPos.y + rookPosY].neverMoved = true;
+
             tiles[target.currentPos.x][target.currentPos.y + rookNewPos].setPiece(NONE, -1);
 
             start.setPiece(target);
+            start.neverMoved = true;
+
             target.setPiece(NONE, -1);
 
             std::replace(posOfPieces.begin(), posOfPieces.end(), tiles[target.currentPos.x][target.currentPos.y + rookNewPos].currentPos, tiles[target.currentPos.x][target.currentPos.y + rookPosY].currentPos);
@@ -806,8 +890,8 @@ void Board::undoMove(Move move){
         }
 
         case EP_CAPTURE:{
-            int direction = (start.color == WHITE) ? -1 : 1;
             int colorOpp = (target.color == WHITE) ? BLACK : WHITE;
+            int direction = (colorOpp == BLACK) ? 1 : -1;
 
             std::replace(posOfPieces.begin(), posOfPieces.end(), target.currentPos, start.currentPos);
             posOfPieces.push_back(tiles[target.currentPos.x - direction][target.currentPos.y].currentPos);
@@ -816,28 +900,79 @@ void Board::undoMove(Move move){
             tiles[target.currentPos.x + direction][target.currentPos.y].setPiece(PAWN, colorOpp);
             target.setPiece(NONE, -1);
 
-            enPassantActive = true;
-            enPassantTarget = {target.currentPos.x, target.currentPos.y};
+            /*enPassantActive = true;
+            enPassantTarget = {target.currentPos.x, target.currentPos.y};*/
 
             break;
-
         }
+
         case N_PROMOTION:
         case B_PROMOTION:
         case R_PROMOTION:
-        case Q_PROMOTION:
+        case Q_PROMOTION:{
+            start.setPiece(PAWN, target.color);
+            target.setPiece(NONE, -1);
+            std::replace(posOfPieces.begin(), posOfPieces.end(), target.currentPos, start.currentPos); 
+
+            break;
+        }
         case N_PROMOTION_CAPTURE:
         case B_PROMOTION_CAPTURE:
         case R_PROMOTION_CAPTURE:
         case Q_PROMOTION_CAPTURE:{
+            int colorOpp = (target.color == WHITE) ? BLACK : WHITE;
+
+            std::replace(posOfPieces.begin(), posOfPieces.end(), target.currentPos, start.currentPos);
+            posOfPieces.push_back(target.currentPos);
+
+            start.setPiece(PAWN, target.color);
+            target.setPiece(move.capturedPiece, colorOpp); 
+
             break;
         }
     }
 
-    
 
+    currentGameState = gameStateHistory.top();
+    restoreGameState();
+    gameStateHistory.pop();
+
+
+    if(target.piece == PAWN){
+        if((target.color == WHITE && target.currentPos.x == 6) || (target.color == BLACK && target.currentPos.x == 1)){
+            target.neverMoved = true;
+        }
+    }
+
+    if(start.piece == PAWN){
+        if((start.color == WHITE && start.currentPos.x == 6) || (start.color == BLACK && start.currentPos.x == 1)){
+            start.neverMoved = true;
+        }
+    }
+
+}
+
+void Board::undoMove(Move move){
+    tryUndoMove(move);
     changeTurn();
 }
+
+
+
+void Board::restoreGameState(){
+
+    enPassantActive = currentGameState.enPassantActive;
+    enPassantTarget = currentGameState.enPassantTarget;
+    castlingRights = currentGameState.castlingRights;
+
+    nbMoves = currentGameState.nbMoves;
+    nbHalfMoves = currentGameState.nbHalfMoves;
+
+    restoreCastlingRights();
+
+}
+
+
 
 void Board::redoMove(){
     /*
@@ -861,34 +996,65 @@ vector<Move> Board::filterLegalMoves(Tile t){
     
 
     for(const Move& move : t.legalMoves){
-        Board b = Board(*this);
 
-        b.tryMakeMove(move);
+        tryMakeMove(move);
         bool isKingSafe = true;
 
         for(int i = 0; i < BOARD; i++){
             for(int j = 0; j < BOARD; j++){
-                Tile oppPiece = b.tiles[i][j];
+                Tile oppPiece = tiles[i][j];
 
                 if(oppPiece.color == opponent){
-                    b.generateMoves(oppPiece);
+                    generateMoves(oppPiece);
 
                     for(Move opp : oppPiece.legalMoves){
-                        if(opp.type == CAPTURE && b.tiles[opp.target.x][opp.target.y].piece == KING){
+                        if((opp.type == CAPTURE || opp.type == B_PROMOTION_CAPTURE || opp.type == Q_PROMOTION_CAPTURE || opp.type == R_PROMOTION_CAPTURE || opp.type  == N_PROMOTION_CAPTURE) && tiles[opp.target.x][opp.target.y].piece == KING){
                             isKingSafe = false;
                             break;
                         }
                     }
                 }
-
                 if (!isKingSafe) break;
             }
         }
+        
+        if(isKingSafe){ validMoves.push_back(move);}
+        tryUndoMove(move);
+    }
 
-        if(isKingSafe) validMoves.push_back(move);
+    if(t.piece == KING && t.neverMoved){
+        
+        int direction = 2;
+
+        Position startingSquare = (t.color == WHITE) ? Position(7, 4) : Position(0, 4);
+
+        Position castleKingSide = {startingSquare.x, startingSquare.y + direction};
+        Position castleQueenSide = {startingSquare.x, startingSquare.y - direction};
+
+        Move kCastle = {KCASTLE, startingSquare, castleKingSide};
+        Move qCastle = {QCASTLE, startingSquare, castleQueenSide};
+
+        if(isInValidMoves(validMoves, kCastle)){
+            if(!isInValidMoves(validMoves, {QUIET, startingSquare, {castleKingSide.x, castleKingSide.y - 1}, t.neverMoved})){
+                validMoves.erase(std::remove(validMoves.begin(), validMoves.end(), kCastle), validMoves.end());
+            }
+        }
+
+        if(isInValidMoves(validMoves, qCastle)){
+            if(!isInValidMoves(validMoves, {QUIET, startingSquare, {castleQueenSide.x, castleQueenSide.y + 1}, t.neverMoved})){
+                validMoves.erase(std::remove(validMoves.begin(), validMoves.end(), qCastle), validMoves.end());
+            }
+        }
     }
 
     return validMoves;
+}
+
+bool isInValidMoves(std::vector<Move> v, Move move){
+    for(Move m : v){
+        if(m == move) return true;
+    }
+    return false;
 }
 
 
@@ -897,24 +1063,30 @@ vector<Move> Board::filterLegalMoves(Tile t){
 bool Board::isKingInCheck(unsigned int colorPiece){
     int colorOpp = (colorPiece == WHITE) ? BLACK : WHITE;
 
-    for(Position opp : posOfPieces){
-        Tile oppPiece = tiles[opp.x][opp.y];
+    for(int i = 0; i < BOARD; i++){
+        for(int j = 0; j < BOARD; j++){
+            Tile oppPiece = tiles[i][j];
 
-        if(oppPiece.color == colorOpp && oppPiece.piece != KING){
-            generateMoves(oppPiece);
+            if(oppPiece.piece != NONE && oppPiece.color == colorOpp && oppPiece.piece != KING){
+                generateMoves(oppPiece);
 
-            for(Move move : oppPiece.legalMoves){
-                if(move.type == CAPTURE && tiles[move.target.x][move.target.y].piece == KING){
-                    return true;
+                for(Move move : oppPiece.legalMoves){
+                    if((move.type == CAPTURE || moveIsAnyPromCapt(move)) && tiles[move.target.x][move.target.y].piece == KING){
+                        return true;
+                    }
                 }
             }
         }
+        
     }
 
     return false;
 }
 
 
+bool moveIsAnyPromCapt(Move move){
+    return move.type == B_PROMOTION_CAPTURE || move.type == Q_PROMOTION_CAPTURE || move.type == N_PROMOTION_CAPTURE || move.type == R_PROMOTION_CAPTURE;
+}
 
 
 

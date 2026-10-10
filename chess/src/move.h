@@ -27,12 +27,15 @@ class Move{
         int type;
         Position start;
         Position target;
-        int capturedPiece;
+        unsigned int capturedPiece;
+        bool pieceNeverMoved;
 
     
         Move();
         Move(int t, Position s, Position targ) : type(t), start(s), target(targ){}
-        Move(int t, Position s, Position targ, int capture) : type(t), start(s), target(targ), capturedPiece(capture){}
+        Move(int t, Position s, Position targ, unsigned int capture) : type(t), start(s), target(targ), capturedPiece(capture){}
+        Move(int t, Position s, Position targ, bool nvmov) : type(t), start(s), target(targ), pieceNeverMoved(nvmov){}
+        Move(int t, Position s, Position targ, unsigned int capture, bool nvmov) : type(t), start(s), target(targ), capturedPiece(capture), pieceNeverMoved(nvmov){}
 
     
         bool operator== (const Move& m) const;

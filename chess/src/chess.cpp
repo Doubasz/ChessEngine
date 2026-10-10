@@ -1,11 +1,7 @@
 
 #include "chess.h"
 #include <iostream>
-#include "def.h"
 
-#include "draw.h"
-#include "board.h"
-#include "button.h"
 #include "bot.h"
 
 using namespace std;
@@ -107,9 +103,10 @@ Chess::Chess(){
 
     int gap = 40;
 
-    Button playBotRandom = Button{leftButtonX, leftButtonY + gap + leftButtonH, leftButtonW, leftButtonH};
-    playBotRandom.text = "Play bot random";
-    playBotRandom.name = "botRandom";
+    Button getFen = Button{leftButtonX, leftButtonY + gap + leftButtonH, leftButtonW, leftButtonH};
+    getFen.text = "Get fen";
+    getFen.name = "getFen";
+    getFen.onClick = [this]() { this->getFen(); }; 
     //playBotRandom.onClick
 
 
@@ -119,15 +116,42 @@ Chess::Chess(){
     perft.onClick = [this]() { runPerft(); };
 
 
+    Button prntMoves = Button{leftButtonX, leftButtonY + 40 + leftButtonH * 2, leftButtonW, leftButtonH};
+    prntMoves.text = "Get List Moves";
+    prntMoves.name = "prntMoves";
+    prntMoves.onClick = [this]() { printMoves(); };
+
+
     buttons.push_back(undo);
     buttons.push_back(redo);
     buttons.push_back(stateGame);
     buttons.push_back(newGame);
-    buttons.push_back(playBotRandom);
+    buttons.push_back(getFen);
     buttons.push_back(perft);
+    buttons.push_back(prntMoves);
 
     board.displayBoard();
 
+}
+
+void Chess::printMoves(){
+    Move moves[256];
+
+    int nbMoves = board.getAllMoves(moves, 256);
+
+    cout << "Moves : ";
+    for(int i = 0; i < nbMoves; i++){
+        cout << moves[i].moveToAlbr();
+        if(i != nbMoves - 1){
+            cout << ", ";
+        }
+    }
+    cout << endl;
+    cout << "nbMoves: " << nbMoves << endl;
+}
+
+void Chess::getFen(){
+    cout << board.posToFen() << endl;
 }
 
 void playBotRandom(){
@@ -553,7 +577,10 @@ Position Chess::getClosestTile(Position p){
 }
 
 void Chess::runPerft(){
-    int limit = 5;
+    int limit = 2;
+
+    /*uint64_t nodeSearched = dividePerft(limit);
+    cout << "Depth " << limit << ": " << nodeSearched << " moves\n";*/
 
     for(int depth = 1; depth <= limit; depth++){
         uint64_t nodeSearched = dividePerft(depth);

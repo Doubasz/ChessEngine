@@ -11,7 +11,6 @@ void Tile::setPiece(Tile t){
     piece = t.piece;
     color = t.color;
     neverMoved = false;
-    t.neverMoved = false;
 }
 
 Tile::Tile(){

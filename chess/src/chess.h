@@ -7,6 +7,7 @@
 #include "draw.h"
 #include "board.h"
 #include "button.h"
+#include "def.h"
 
 
 
@@ -38,6 +39,8 @@ class Chess{
         uint64_t perft(int depth);
         uint64_t dividePerft(int depth);
         void runPerft();
+        void getFen();
+        void printMoves();
 };   
 
 

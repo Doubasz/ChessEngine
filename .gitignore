@@ -1,0 +1,19 @@
+# Build output
+build/
+*.o
+*.obj
+*.exe
+
+# Old binaries built in-tree
+chess/chess
+chess/perft
+chessLibrary/chess
+chess2/bin/
+chess2/obj/
+
+# Python
+__pycache__/
+
+# Editors
+.vscode/
+.idea/
