@@ -34,6 +34,5 @@ uint64_t dividePerft(Board& board, int depth, std::ostream& out){
         totalNodes += nodes;
     }
 
-    out << "Total: " << totalNodes << "\n";
     return totalNodes;
 }
