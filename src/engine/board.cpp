@@ -1,6 +1,5 @@
 #include "board.h"
 #include "tile.h"
-#include "def.h"
 #include <string>
 #include <vector>
 #include <sstream>
@@ -26,34 +25,17 @@ Board::Board(){
     
     parseFENPosition(startingPosition);
 
-    //  Here I'm initialising the position in the window of the board, used in drag and drop (although not used now)
-
-    Position startingPos = Position(STARTING_POSX, STARTING_POSY);
     castlingRights = 15;
-    //lastCapturedPiece = NONE;
-
-    for(int i = 0; i < BOARD; i++){
-        startingPos.x = STARTING_POSX;
-
-        for(int j = 0; j < BOARD; j++){
-            posTiles[i][j] = startingPos;
-            tiles[i][j].currentPos = {i, j};
-
-            startingPos.x += TILESIZE;
-        }
-        startingPos.y += TILESIZE;
-    }
 
 
 }
 
 
 Board::Board(const Board& other) {
-    // 1. Copy `tiles` and `posTiles`
+    // 1. Copy `tiles`
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
             tiles[i][j] = other.tiles[i][j];
-            posTiles[i][j] = other.posTiles[i][j];
         }
     }
 
@@ -70,17 +52,6 @@ Board::Board(const Board& other) {
     enPassantActive = other.enPassantActive;
     enPassantTarget = other.enPassantTarget;
 
-/*
-    // 5. Copy `textures`
-    if (other.textures) {
-        textures = new SDL_Texture*[13]; // Assuming 13 textures
-        for (int i = 0; i < 13; ++i) {
-            textures[i] = other.textures[i]; // Shallow copy (adjust for deep copy if needed)
-        }
-    } else {
-        textures = nullptr;
-    }
-*/
 }
 
 //  Insha allah no memory leaks
@@ -1112,19 +1083,6 @@ void Board::displayBoard(){
     }
 
     cout << "isTheKingInCheck: " << isKingInCheck(WHITE) << endl;
-}
-
-void Board::displayPosTiles(){
-    cout << "Board:\n";
-    for(int i = 0; i < BOARD; i++){
-        for(int j = 0; j < BOARD; j++){
-            cout << posTiles[i][j];
-            if(j != BOARD - 1){
-                cout << ", ";
-            }
-        }
-        cout << "\n";
-    }
 }
 
 

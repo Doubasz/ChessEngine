@@ -1,0 +1,93 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(ChessEngine
+    VERSION 0.1.0
+    DESCRIPTION "Chess engine and SDL2 GUI"
+    LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+option(CHESS_BUILD_GUI "Build the SDL2 GUI (needs SDL2, SDL2_image, SDL2_ttf)" ON)
+option(CHESS_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+
+# ---- Shared compiler settings ------------------------------------------------
+
+add_library(chess_options INTERFACE)
+
+if(MSVC)
+    target_compile_options(chess_options INTERFACE /W4 /permissive-)
+else()
+    target_compile_options(chess_options INTERFACE -Wall -Wextra -Wpedantic)
+endif()
+
+if(CHESS_SANITIZERS)
+    if(MSVC OR MINGW)
+        message(FATAL_ERROR "CHESS_SANITIZERS is only supported with GCC/Clang on Linux or macOS")
+    endif()
+    target_compile_options(chess_options INTERFACE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(chess_options INTERFACE -fsanitize=address,undefined)
+endif()
+
+
+# ---- Engine: rules, move generation, perft. No dependency on SDL -------------
+
+add_library(engine STATIC
+    src/engine/board.cpp
+    src/engine/GameState.cpp
+    src/engine/move.cpp
+    src/engine/perft.cpp
+    src/engine/position.cpp
+    src/engine/tile.cpp
+)
+target_include_directories(engine PUBLIC src/engine)
+target_link_libraries(engine PRIVATE chess_options)
+
+
+# ---- Perft command line tool --------------------------------------------------
+
+add_executable(perft src/perft/main.cpp)
+target_link_libraries(perft PRIVATE engine chess_options)
+
+
+# ---- GUI ----------------------------------------------------------------------
+
+if(CHESS_BUILD_GUI)
+    find_package(SDL2 REQUIRED CONFIG)
+    find_package(SDL2_image REQUIRED CONFIG)
+    find_package(SDL2_ttf REQUIRED CONFIG)
+
+    add_executable(chess
+        src/gui/bot.cpp
+        src/gui/button.cpp
+        src/gui/chess.cpp
+        src/gui/color.cpp
+        src/gui/draw.cpp
+        src/gui/main.cpp
+    )
+
+    if(TARGET SDL2::SDL2main)
+        target_link_libraries(chess PRIVATE SDL2::SDL2main)
+    endif()
+
+    target_link_libraries(chess PRIVATE
+        engine
+        chess_options
+        SDL2::SDL2
+        SDL2_image::SDL2_image
+        SDL2_ttf::SDL2_ttf
+    )
+
+    # The GUI loads "sprites/..." relative to where it runs, so ship them next to the executable
+    add_custom_command(TARGET chess POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${CMAKE_SOURCE_DIR}/sprites $<TARGET_FILE_DIR:chess>/sprites
+        COMMENT "Copying sprites next to the executable")
+endif()

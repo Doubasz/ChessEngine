@@ -4,11 +4,11 @@
 #define WHITE 0
 #define BLACK 6
 
-#include "def.h"
+#define BOARD 8
+
 #include "move.h"
 #include <vector>
 #include <string>
-#include <SDL2/SDL.h>
 #include "position.h"
 
 
@@ -23,21 +23,6 @@ enum Piece{
 };
 
 
-const std::string TEXTURES_PATHS[NUM_PATHS] = {
-    WPAWN_PATH,
-    WKNIGHT_PATH,
-    WBISHOP_PATH,
-    WROOK_PATH,
-    WQUEEN_PATH,
-    WKING_PATH,
-    BPAWN_PATH,
-    BKNIGHT_PATH,
-    BBISHOP_PATH,
-    BROOK_PATH,
-    BQUEEN_PATH,
-    BKING_PATH,
-    UNDO_REDO,
-};
 
 
 

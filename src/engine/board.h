@@ -28,7 +28,6 @@ class Board{
 
     public:
         Tile tiles[8][8];
-        Position posTiles[8][8];
         std::vector<Position> posOfPieces;
         Move lastMove;
 
@@ -68,7 +67,6 @@ class Board{
         void tryUndoMove(Move move);
         void redoMove();
         void displayBoard();
-        void displayPosTiles();
         int getAllMoves(Move move[], int size);
 
         std::vector<Move> filterLegalMoves(Tile tile);

@@ -1,9 +1,11 @@
+import os
 import subprocess
+import sys
 
-def run_engine_perft(engine_cmd, depth):
+def run_engine_perft(engine_path, fen, depth):
     """Runs the chess engine's perft command and parses the output."""
     try:
-        process = subprocess.run(engine_cmd, capture_output=True, text=True, shell=True)
+        process = subprocess.run([engine_path, str(depth), fen], capture_output=True, text=True)
         output = process.stdout.strip()
         return parse_perft_output(output)
     except Exception as e:
@@ -51,14 +53,17 @@ def compare_perft(engine_perft, stockfish_perft):
     return differences
 
 if __name__ == "__main__":
-    fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"  # Default starting position
-    depth = 3  # Change as needed
+    # Usage: python tools/perftDiff.py <path to perft executable> <depth> [fen]
+    if len(sys.argv) < 3:
+        print("Usage: python tools/perftDiff.py <perft executable> <depth> [fen]")
+        sys.exit(1)
 
-    # Replace 'your_engine' with the actual command to run your engine's perft.
-    engine_cmd = f"./perft"
-    
+    engine_path = os.path.abspath(sys.argv[1])  # Windows can't launch relative paths written with '/'
+    depth = int(sys.argv[2])
+    fen = " ".join(sys.argv[3:]) or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
     print("Running your engine's perft...")
-    engine_perft = run_engine_perft(engine_cmd, depth)
+    engine_perft = run_engine_perft(engine_path, fen, depth)
     
     print("Running Stockfish's perft...")
     stockfish_perft = run_stockfish_perft(fen, depth)

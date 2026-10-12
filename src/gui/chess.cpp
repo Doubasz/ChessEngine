@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "bot.h"
+#include "perft.h"
 
 using namespace std;
 
@@ -325,18 +326,6 @@ void Chess::doInput(){
                 break;
                 
 
-            case SDL_MOUSEMOTION: 
-                if(mousePressed){
-
-                    if(piecePosInArray.x != -1 && piecePosInArray.y != - 1){
-
-                        board.posTiles[piecePosInArray.x][piecePosInArray.y] = Position(event.motion.x - TILESIZE / 2, event.motion.y - TILESIZE  / 2);
-                    }
-                    
-                }
-                
-                break;
-
             
             case SDL_MOUSEBUTTONUP:
 
@@ -526,10 +515,6 @@ bool isInBoard(Position selectPos){
     return selectPos.x > STARTING_POSX && selectPos.y > STARTING_POSY && selectPos.x < STARTING_POSX + (TILESIZE * BOARD) && selectPos.y < STARTING_POSY + (TILESIZE * BOARD);
 }
 
-bool isInTile(Position selectPos, Position tilePos){
-    return selectPos.x - tilePos.x <= TILESIZE && selectPos.y - tilePos.y <= TILESIZE && selectPos.x - tilePos.x >= 0 && selectPos.y - tilePos.y >= 0;
-}
-
 bool isPromotion(Tile target){
     return (target.currentPos.x == 7 || target.currentPos.x == 0) && target.piece == PAWN; 
 }
@@ -538,42 +523,12 @@ bool isBetweenZone(Position posToVerify, SDL_Rect zone){
     return posToVerify.x >= zone.x && posToVerify.x <= zone.x + zone.w && posToVerify.y >= zone.y && posToVerify.y <= zone.y + zone.h;
 }
 
+//  Converts a pixel position in the window into [i][j] indexes of board.tiles, (-1, -1) if outside the board
+
 Position Chess::getPiecePosInArray(Position posInWindow){
-    Position temp = Position(-1, -1);
+    if(!isInBoard(posInWindow)) return Position(-1, -1);
 
-    for(int i = 0; i < BOARD; i++){
-        for(int j = 0; j < BOARD; j++){
-            if(isInTile(posInWindow, board.posTiles[i][j])){
-                temp.x = i;
-                temp.y = j;
-                break;
-            }
-        }
-    }
-
-    return temp;
-}
-
-Position Chess::getClosestTile(Position p){
-
-    Position temp = Position(-1, -1);
-    Position tile = Position(STARTING_POSX, STARTING_POSY);
-
-    for(int i = 0; i < BOARD; i++){
-        tile.x = STARTING_POSX;
-        for(int j = 0; j < BOARD; j++){
-            if(isInTile(p, tile)){
-                temp.x = i;
-                temp.y = j;
-                break;
-            }
-
-            tile.x += TILESIZE;
-        }
-        tile.y += TILESIZE;
-    }
-    return temp;
-
+    return Position((posInWindow.y - STARTING_POSY) / TILESIZE, (posInWindow.x - STARTING_POSX) / TILESIZE);
 }
 
 void Chess::runPerft(){
@@ -583,55 +538,7 @@ void Chess::runPerft(){
     cout << "Depth " << limit << ": " << nodeSearched << " moves\n";*/
 
     for(int depth = 1; depth <= limit; depth++){
-        uint64_t nodeSearched = dividePerft(depth);
+        uint64_t nodeSearched = dividePerft(board, depth, cout);
         cout << "Depth " << depth << ": " << nodeSearched << " moves\n";
     }
 }
-
-uint64_t Chess::perft(int depth){
-    if(depth == 0) return 1;
-
-    Move moves[256];
-    uint64_t totalNodes = 0;
-
-    int nbMoves = board.getAllMoves(moves, 256);
-
-    /*for(Position pos : board.posOfPieces){
-        board.generateLegalMoves(board.tiles[pos.x][pos.y]);
-        for(Move move : board.tiles[pos.x][pos.y].legalMoves){
-            moves.push_back(move);
-        }
-    }*/
-        
-
-    for (int i = 0; i < nbMoves; i++) {
-        board.makeMove(moves[i]);
-        totalNodes += perft(depth - 1);
-        board.undoMove(moves[i]);
-
-    }
-
-    return totalNodes;
-}
-
-uint64_t Chess::dividePerft(int depth) {
-    if (depth == 0) return 1;
-
-    Move moves[256];
-    uint64_t totalNodes = 0;
-
-    int nbMoves = board.getAllMoves(moves, 256);
-
-    for (int i = 0; i < nbMoves; i++) {
-        board.makeMove(moves[i]);
-        uint64_t nodes = perft(depth - 1);
-        board.undoMove(moves[i]);
-
-        std::cout << moves[i].moveToAlbr() << ": " << nodes << std::endl;
-        totalNodes += nodes;
-    }
-
-    std::cout << "Total: " << totalNodes << std::endl;
-    return totalNodes;
-}
-
