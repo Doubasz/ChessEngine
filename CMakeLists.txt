@@ -16,6 +16,7 @@ endif()
 
 option(CHESS_BUILD_GUI "Build the SDL2 GUI (needs SDL2, SDL2_image, SDL2_ttf)" ON)
 option(CHESS_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(CHESS_BUILD_TESTS "Build the test suite (run it with ctest)" ON)
 
 
 # ---- Shared compiler settings ------------------------------------------------
@@ -55,6 +56,14 @@ target_link_libraries(engine PRIVATE chess_options)
 
 add_executable(perft src/perft/main.cpp)
 target_link_libraries(perft PRIVATE engine chess_options)
+
+
+# ---- Tests --------------------------------------------------------------------
+
+if(CHESS_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 
 # ---- GUI ----------------------------------------------------------------------

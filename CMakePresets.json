@@ -29,11 +29,30 @@
                 "CHESS_SANITIZERS": "ON",
                 "CHESS_BUILD_GUI": "OFF"
             }
+        },
+        {
+            "name": "ci",
+            "displayName": "CI: Release, engine and tests only (no SDL needed)",
+            "inherits": "release",
+            "cacheVariables": { "CHESS_BUILD_GUI": "OFF" }
         }
     ],
     "buildPresets": [
         { "name": "debug", "configurePreset": "debug" },
         { "name": "release", "configurePreset": "release" },
-        { "name": "asan", "configurePreset": "asan" }
+        { "name": "asan", "configurePreset": "asan" },
+        { "name": "ci", "configurePreset": "ci" }
+    ],
+    "testPresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error" }
+        },
+        { "name": "debug", "inherits": "base", "configurePreset": "debug" },
+        { "name": "release", "inherits": "base", "configurePreset": "release" },
+        { "name": "asan", "inherits": "base", "configurePreset": "asan" },
+        { "name": "ci", "inherits": "base", "configurePreset": "ci" }
     ]
 }
