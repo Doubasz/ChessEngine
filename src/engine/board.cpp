@@ -376,9 +376,12 @@ void Board::generateMoves(Tile& tile){
                 
 
                 //  if the pawn never moved he can move up 2 squares
-                if(tile.neverMoved){
-                    if(tiles[forward.x + direction][forward.y].piece == NONE){
-                        targetSquares.push_back({D_PAWN_PUSH, startingSquare, {forward.x + direction, forward.y}});
+                //  bounds check: neverMoved is set for any pawn on rows 1 and 6, so a pawn
+                //  about to promote can get here and the square would be off the board
+                Position doublePush = {forward.x + direction, forward.y};
+                if(tile.neverMoved && notOutOfBonds(doublePush)){
+                    if(tiles[doublePush.x][doublePush.y].piece == NONE){
+                        targetSquares.push_back({D_PAWN_PUSH, startingSquare, doublePush});
                     }
                 }
                 
