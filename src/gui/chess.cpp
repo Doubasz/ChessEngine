@@ -54,7 +54,7 @@ Chess::Chess(){
 
     textures = loadAllTexture(renderer);
 
-    TTF_Font* fontInit = TTF_OpenFont("/usr/share/fonts/truetype/Gargi/Gargi.ttf", 64);
+    TTF_Font* fontInit = TTF_OpenFont(FONT_PATH, 64);
     if (!fontInit) {
         std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
         exit(-1);
