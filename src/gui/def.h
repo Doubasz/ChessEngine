@@ -34,4 +34,6 @@
 
 #define UNDO_REDO "sprites/undoRedo.png"
 
+#define FONT_PATH "sprites/fonts/DejaVuSans.ttf"
+
 #endif
