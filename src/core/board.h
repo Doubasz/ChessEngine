@@ -6,8 +6,16 @@
 #include <array>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace chess {
+
+enum class GameStatus {
+    Ongoing,
+    Checkmate,  // the side to move is mated
+    Stalemate,
+    FiftyMoveRule,
+};
 
 //  A chess position: where the pieces are, whose turn it is, castling rights,
 //  en passant square and the two move counters.
@@ -34,9 +42,38 @@ public:
     int fullmoveNumber() const { return fullmoveNumber_; }
     Square kingSquare(Color c) const { return kings_[c]; }
 
+    bool isSquareAttacked(Square s, Color by) const;
+    bool inCheck() const { return isSquareAttacked(kings_[sideToMove_], ~sideToMove_); }
+
+    //  Fills moves with every legal move of the side to move. Not const: each candidate move
+    //  is played and taken back to see if it leaves the king in check, the board ends up unchanged.
+    void generateLegalMoves(MoveList& moves);
+
+    //  The legal move written as uci (e2e4, e7e8q), or the null move if there is none
+    Move moveFromUci(std::string_view uci);
+
+    //  m must be legal in this position. unmakeMove takes back the last move made.
+    void makeMove(Move m);
+    void unmakeMove();
+
+    GameStatus status();
+
 private:
+    //  Everything makeMove overwrites and unmakeMove cannot work out from the move itself
+    struct Undo {
+        Move move;
+        Piece captured;
+        int castlingRights;
+        Square enPassant;
+        int halfmoveClock;
+    };
+
     struct EmptyTag {};
     explicit Board(EmptyTag);  // no pieces at all, used as the starting point of setFen
+
+    void addIfLegal(MoveList& moves, Move m);
+    void generatePawnMoves(MoveList& moves, Square from);
+    void generateCastling(MoveList& moves);
 
     std::array<Piece, BoardArraySize> squares_{};
     Color sideToMove_ = White;
@@ -47,6 +84,8 @@ private:
 
     //  Kept up to date by makeMove so check detection does not have to search for the king
     std::array<Square, 2> kings_{NoSquare, NoSquare};
+
+    std::vector<Undo> history_;
 };
 
 }  // namespace chess

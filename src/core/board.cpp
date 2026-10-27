@@ -13,6 +13,40 @@ bool parseCounter(const std::string& field, int& out) {
     return error == std::errc() && ptr == end && out >= 0;
 }
 
+//  Castling rights that survive a move touching each square: anything leaving or landing on
+//  e1 loses both white rights, a1 loses white queenside... 15 (all kept) everywhere else.
+//  makeMove does rights &= mask[from] & mask[to], which also handles a rook being captured.
+constexpr std::array<uint8_t, BoardArraySize> CastlingMask = [] {
+    std::array<uint8_t, BoardArraySize> mask{};
+    for (auto& m : mask) m = AllCastling;
+    mask[E1] = AllCastling & ~(WhiteKingside | WhiteQueenside);
+    mask[H1] = AllCastling & ~WhiteKingside;
+    mask[A1] = AllCastling & ~WhiteQueenside;
+    mask[E8] = AllCastling & ~(BlackKingside | BlackQueenside);
+    mask[H8] = AllCastling & ~BlackKingside;
+    mask[A8] = AllCastling & ~BlackQueenside;
+    return mask;
+}();
+
+//  Where the rook starts and ends for a castling move, keyed by the king's target square
+struct RookMove {
+    Square from, to;
+};
+
+constexpr RookMove castlingRook(Square kingTo) {
+    switch (kingTo) {
+        case G1: return {H1, F1};
+        case C1: return {A1, D1};
+        case G8: return {H8, F8};
+        default: return {A8, D8};  // C8
+    }
+}
+
+//  The pawn taken en passant is beside the moving pawn, one rank behind the target square
+constexpr Square enPassantVictim(Square to, Color us) {
+    return us == White ? to - 16 : to + 16;
+}
+
 }  // namespace
 
 
@@ -92,12 +126,16 @@ bool Board::setFen(std::string_view fen) {
     if (sq[E8] != BlackKing || sq[H8] != BlackRook) parsed.castlingRights_ &= ~BlackKingside;
     if (sq[E8] != BlackKing || sq[A8] != BlackRook) parsed.castlingRights_ &= ~BlackQueenside;
 
-    // 4. En passant: the skipped square is on rank 6 when white is to move, rank 3 when black is
+    // 4. En passant: the skipped square is on rank 6 when white is to move, rank 3 when black is.
+    //    It is kept only if it is empty with the pawn that just moved in front of it, otherwise
+    //    an en passant capture would remove whatever piece stands there
     if (enPassant != "-") {
         Square s = squareFromString(enPassant);
         int expectedRank = parsed.sideToMove_ == White ? 5 : 2;
         if (s == NoSquare || rankOf(s) != expectedRank) return false;
-        parsed.enPassant_ = s;
+
+        Square pushedPawn = parsed.sideToMove_ == White ? s - 16 : s + 16;
+        if (sq[s] == NoPiece && sq[pushedPawn] == makePiece(~parsed.sideToMove_, Pawn)) parsed.enPassant_ = s;
     }
 
     // 5 and 6. Counters
@@ -141,6 +179,75 @@ std::string Board::fen() const {
     fen += ' ' + std::to_string(fullmoveNumber_);
 
     return fen;
+}
+
+
+void Board::makeMove(Move m) {
+    Color us = sideToMove_;
+    Square from = m.from(), to = m.to();
+    Piece piece = squares_[from];
+
+    Square captureSquare = m.kind() == MoveKind::EnPassant ? enPassantVictim(to, us) : to;
+    Piece captured = squares_[captureSquare];
+
+    history_.push_back({m, captured, castlingRights_, enPassant_, halfmoveClock_});
+
+    squares_[captureSquare] = NoPiece;
+    squares_[from] = NoPiece;
+    squares_[to] = m.promotion() != NoPieceType ? makePiece(us, m.promotion()) : piece;
+
+    if (m.kind() == MoveKind::Castling) {
+        RookMove rook = castlingRook(to);
+        squares_[rook.to] = squares_[rook.from];
+        squares_[rook.from] = NoPiece;
+    }
+
+    if (typeOf(piece) == King) kings_[us] = to;
+
+    castlingRights_ &= CastlingMask[from] & CastlingMask[to];
+
+    //  The en passant square is the one the pawn skipped
+    enPassant_ = m.kind() == MoveKind::DoublePush ? from + (us == White ? 16 : -16) : NoSquare;
+
+    halfmoveClock_ = (typeOf(piece) == Pawn || captured != NoPiece) ? 0 : halfmoveClock_ + 1;
+    if (us == Black) fullmoveNumber_++;
+
+    sideToMove_ = ~us;
+}
+
+
+//  The exact reverse of makeMove, in the opposite order
+
+void Board::unmakeMove() {
+    Undo undo = history_.back();
+    history_.pop_back();
+
+    Move m = undo.move;
+    Square from = m.from(), to = m.to();
+    Color us = ~sideToMove_;  // the side that made the move
+    sideToMove_ = us;
+
+    if (us == Black) fullmoveNumber_--;
+    halfmoveClock_ = undo.halfmoveClock;
+    enPassant_ = undo.enPassant;
+    castlingRights_ = undo.castlingRights;
+
+    //  A promoted piece goes back to being a pawn
+    Piece piece = m.promotion() != NoPieceType ? makePiece(us, Pawn) : squares_[to];
+
+    if (typeOf(piece) == King) kings_[us] = from;
+
+    if (m.kind() == MoveKind::Castling) {
+        RookMove rook = castlingRook(to);
+        squares_[rook.from] = squares_[rook.to];
+        squares_[rook.to] = NoPiece;
+    }
+
+    squares_[to] = NoPiece;
+    squares_[from] = piece;
+
+    Square captureSquare = m.kind() == MoveKind::EnPassant ? enPassantVictim(to, us) : to;
+    squares_[captureSquare] = undo.captured;
 }
 
 }  // namespace chess

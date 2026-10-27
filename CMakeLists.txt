@@ -59,6 +59,7 @@ target_link_libraries(engine PRIVATE chess_options)
 add_library(core STATIC
     src/core/board.cpp
     src/core/move.cpp
+    src/core/movegen.cpp
     src/core/types.cpp
 )
 target_include_directories(core PUBLIC src)
