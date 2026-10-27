@@ -12,6 +12,6 @@ GameState::GameState(int castlingRights, int turnToMove, bool enPassantActive, P
     this->nbHalfMoves = nbHalfMoves;
 }
 
-GameState::GameState(){
+GameState::GameState() : castlingRights(0), enPassantActive(false), enPassantTarget(-1, -1), nbMoves(1), nbHalfMoves(0){
 
 }

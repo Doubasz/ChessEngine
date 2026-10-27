@@ -25,8 +25,6 @@ Board::Board(){
     
     parseFENPosition(startingPosition);
 
-    castlingRights = 15;
-
 
 }
 
@@ -243,7 +241,11 @@ void Board::parseFENPosition(string position){
     tiles[0][7].neverMoved = (fenPosition[2].find('k') != string::npos) ? true : false;
     tiles[0][0].neverMoved = (fenPosition[2].find('q') != string::npos) ? true : false;
 
-    updateCastlingRights();
+    castlingRights = 0;
+    if(fenPosition[2].find('K') != string::npos) castlingRights |= WHITE_KINGSIDE;
+    if(fenPosition[2].find('Q') != string::npos) castlingRights |= WHITE_QUEENSIDE;
+    if(fenPosition[2].find('k') != string::npos) castlingRights |= BLACK_KINGSIDE;
+    if(fenPosition[2].find('q') != string::npos) castlingRights |= BLACK_QUEENSIDE;
 
     //  En passant
     enPassantActive = (fenPosition[3].find('-') != string::npos) ? false : true;
@@ -259,6 +261,8 @@ void Board::parseFENPosition(string position){
     nbHalfMoves = std::stoi(fenPosition[4]);
     nbMoves = std::stoi(fenPosition[5]);
 
+    //  The state undoMove restores after the first move, without it undo reads garbage
+    currentGameState = GameState(castlingRights, turnToMove, enPassantActive, enPassantTarget, nbMoves, nbHalfMoves);
 }
 
 //  basically e4 -> 4, 4 
@@ -500,13 +504,15 @@ void Board::generateMoves(Tile& tile){
                 bool kingInCheck = isKingInCheck(tile.color);
 
                 
-                if(tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y]) && tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y - 1]) && hRook.piece == ROOK && hRook.neverMoved){
+                //  Every square between king and rook must be empty, an enemy piece blocks castling too
+                if(tiles[castleKingSide.x][castleKingSide.y].piece == NONE && tiles[castleKingSide.x][castleKingSide.y - 1].piece == NONE && hRook.piece == ROOK && hRook.neverMoved){
                     if(!kingInCheck){
                        targetSquares.push_back({KCASTLE, startingSquare, castleKingSide, tile.neverMoved});
                     }
                 }
 
-                if (tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y]) && tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y + 1]) && aRook.piece == ROOK && aRook.neverMoved){
+                //  Queen side also needs the b-file square empty
+                if (tiles[castleQueenSide.x][castleQueenSide.y].piece == NONE && tiles[castleQueenSide.x][castleQueenSide.y + 1].piece == NONE && tiles[castleQueenSide.x][castleQueenSide.y - 1].piece == NONE && aRook.piece == ROOK && aRook.neverMoved){
                     if(!kingInCheck){
                         targetSquares.push_back({QCASTLE, startingSquare, castleQueenSide, tile.neverMoved});
                     }
@@ -667,7 +673,7 @@ void Board::tryMakeMove(Move move){
         case B_PROMOTION_CAPTURE:
         case R_PROMOTION_CAPTURE:
         case Q_PROMOTION_CAPTURE:{
-            int pieceChoosed = (move.type == Q_PROMOTION) ? QUEEN : (move.type == R_PROMOTION) ? ROOK : (move.type == B_PROMOTION) ? BISHOP : (move.type == N_PROMOTION) ? KNIGHT : QUEEN;
+            int pieceChoosed = (move.type == Q_PROMOTION_CAPTURE) ? QUEEN : (move.type == R_PROMOTION_CAPTURE) ? ROOK : (move.type == B_PROMOTION_CAPTURE) ? BISHOP : (move.type == N_PROMOTION_CAPTURE) ? KNIGHT : QUEEN;
 
             posOfPieces.erase(std::remove(posOfPieces.begin(), posOfPieces.end(), target.currentPos), posOfPieces.end());
             std::replace(posOfPieces.begin(), posOfPieces.end(), start.currentPos, target.currentPos);
