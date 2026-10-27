@@ -3,9 +3,9 @@
 
 #include <SDL2/SDL.h>
 #include <functional>
-#include "point.h"
 #include <string>
 #include "color.h"
+#include "point.h"
 
 class Button{
     public:
@@ -20,17 +20,14 @@ class Button{
         Color colorText;
         std::function<void()> onClick;
 
-    
+
         Button();
         Button(int x, int y, int w, int h);
-        ~Button();
 
         bool isHover() const;
         bool isMouseOver(Point mouse) const;
         void updateHover(Point mouse);
 };
-
-Color darkenColor(Color color, int amount);
 
 
 #endif

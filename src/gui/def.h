@@ -12,13 +12,9 @@
 #define STARTING_POSX 300
 #define STARTING_POSY 100
 
-#define BG_COLOR 0xFF4c4f54
+//  Colors are in theme.h
 
-#define BLACK_TILE 0xFF403823
-#define WHITE_TILE 0xFFE3D5BF
-#define RED_MOVE 0xFFC22B2B
-
-#define NUM_PATHS 13
+#define NUM_PATHS 12
 
 #define WPAWN_PATH "sprites/WPawn.svg"
 #define WKNIGHT_PATH "sprites/WKnight.svg"
@@ -33,8 +29,11 @@
 #define BQUEEN_PATH "sprites/BQueen.svg"
 #define BKING_PATH "sprites/BKing.svg"
 
-#define UNDO_REDO "sprites/undoRedo.png"
-
 #define FONT_PATH "sprites/fonts/DejaVuSans.ttf"
+
+//  Font sizes in pixels
+#define TITLE_FONT_SIZE 30
+#define BUTTON_FONT_SIZE 20
+#define COORDINATE_FONT_SIZE 13
 
 #endif
