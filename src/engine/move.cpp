@@ -19,6 +19,16 @@ std::ostream& operator<<(std::ostream& os, const Move& m) {
     return os; // Return the stream to allow chaining
 } 
 
+//  UCI notation, promotions get the piece as a suffix (e7e8q) so all four promotions are distinct
+
 std::string Move::moveToAlbr(){
-    return toAlgebraic(start) + toAlgebraic(target); 
+    std::string uci = toAlgebraic(start) + toAlgebraic(target);
+
+    switch(type){
+        case N_PROMOTION: case N_PROMOTION_CAPTURE: uci += 'n'; break;
+        case B_PROMOTION: case B_PROMOTION_CAPTURE: uci += 'b'; break;
+        case R_PROMOTION: case R_PROMOTION_CAPTURE: uci += 'r'; break;
+        case Q_PROMOTION: case Q_PROMOTION_CAPTURE: uci += 'q'; break;
+    }
+    return uci;
 }
