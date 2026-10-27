@@ -5,7 +5,9 @@
 #include <SDL2/SDL_image.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 
@@ -31,6 +33,29 @@ const chess::PieceType PromotionChoices[4] = {chess::Queen, chess::Rook, chess::
 static int textureIndex(chess::Piece piece){
     return chess::colorOf(piece) * 6 + chess::typeOf(piece) - 1;
 }
+
+
+
+//  Text textures kept between frames, see drawText
+
+namespace {
+
+struct CachedText{
+    SDL_Texture* texture = nullptr;
+    int w = 0;
+    int h = 0;
+    bool usedThisFrame = false;
+};
+
+std::unordered_map<std::string, CachedText> textCache;
+
+std::string textKey(TTF_Font* font, const std::string& text, Color color){
+    char prefix[64];
+    std::snprintf(prefix, sizeof(prefix), "%p/%02x%02x%02x%02x/", static_cast<void*>(font), color.r, color.g, color.b, color.a);
+    return prefix + text;
+}
+
+}  // namespace
 
 
 
@@ -111,10 +136,11 @@ bool loadAssets(SDL_Renderer* renderer, Assets& assets){
     if(!assets.dot || !assets.ring || !assets.glow) return false;
 
     assets.logoFont = TTF_OpenFont(FONT_PATH, LOGO_FONT_SIZE);
+    assets.infoFont = TTF_OpenFont(FONT_PATH, INFO_FONT_SIZE);
     assets.titleFont = TTF_OpenFont(FONT_PATH, TITLE_FONT_SIZE);
     assets.buttonFont = TTF_OpenFont(FONT_PATH, BUTTON_FONT_SIZE);
     assets.coordinateFont = TTF_OpenFont(FONT_PATH, COORDINATE_FONT_SIZE);
-    if(!assets.logoFont || !assets.titleFont || !assets.buttonFont || !assets.coordinateFont) return false;
+    if(!assets.logoFont || !assets.infoFont || !assets.titleFont || !assets.buttonFont || !assets.coordinateFont) return false;
 
     TTF_SetFontStyle(assets.logoFont, TTF_STYLE_BOLD);
     TTF_SetFontStyle(assets.coordinateFont, TTF_STYLE_BOLD);
@@ -122,6 +148,9 @@ bool loadAssets(SDL_Renderer* renderer, Assets& assets){
 }
 
 void freeAssets(Assets& assets){
+    for(auto& entry : textCache) SDL_DestroyTexture(entry.second.texture);
+    textCache.clear();
+
     for(SDL_Texture* texture : assets.pieces) SDL_DestroyTexture(texture);
     assets.pieces.clear();
 
@@ -129,7 +158,7 @@ void freeAssets(Assets& assets){
         if(*texture) SDL_DestroyTexture(*texture);
         *texture = nullptr;
     }
-    for(TTF_Font** font : {&assets.logoFont, &assets.titleFont, &assets.buttonFont, &assets.coordinateFont}){
+    for(TTF_Font** font : {&assets.logoFont, &assets.infoFont, &assets.titleFont, &assets.buttonFont, &assets.coordinateFont}){
         if(*font) TTF_CloseFont(*font);
         *font = nullptr;
     }
@@ -139,19 +168,20 @@ void freeAssets(Assets& assets){
 
 // ---- Coordinates --------------------------------------------------------------
 
-SDL_Rect squareRect(chess::Square s){
-    int row = 7 - chess::rankOf(s);
-    return SDL_Rect{STARTING_POSX + chess::fileOf(s) * TILESIZE, STARTING_POSY + row * TILESIZE, TILESIZE, TILESIZE};
+SDL_Rect squareRect(chess::Square s, bool flipped){
+    int column = flipped ? 7 - chess::fileOf(s) : chess::fileOf(s);
+    int row = flipped ? chess::rankOf(s) : 7 - chess::rankOf(s);
+    return SDL_Rect{STARTING_POSX + column * TILESIZE, STARTING_POSY + row * TILESIZE, TILESIZE, TILESIZE};
 }
 
-chess::Square squareAt(Point p){
+chess::Square squareAt(Point p, bool flipped){
     bool inside = p.x >= STARTING_POSX && p.y >= STARTING_POSY
                && p.x < STARTING_POSX + TILESIZE * BOARD_SIZE && p.y < STARTING_POSY + TILESIZE * BOARD_SIZE;
     if(!inside) return chess::NoSquare;
 
-    int file = (p.x - STARTING_POSX) / TILESIZE;
+    int column = (p.x - STARTING_POSX) / TILESIZE;
     int row = (p.y - STARTING_POSY) / TILESIZE;
-    return chess::makeSquare(file, 7 - row);
+    return flipped ? chess::makeSquare(7 - column, row) : chess::makeSquare(column, 7 - row);
 }
 
 SDL_Rect promotionPickerRect(){
@@ -177,24 +207,46 @@ void drawRect(SDL_Renderer* renderer, SDL_Rect rect, Color color){
     SDL_RenderFillRect(renderer, &rect);
 }
 
-void drawText(SDL_Renderer* renderer, TTF_Font* font, const std::string& text, Color color, SDL_Rect area){
+//  Rendering text with SDL_ttf is slow (about 0.3 ms each, and a frame shows dozens), so each
+//  text is rendered once into a texture and reused for as long as it stays on screen.
+//  endFrame() destroys the ones that were not drawn during the frame.
+
+void drawText(SDL_Renderer* renderer, TTF_Font* font, const std::string& text, Color color, SDL_Rect area, Align align){
     if(text.empty()) return;
 
-    //  Blended gives smooth edges, unlike Solid
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), SDL_Color{color.r, color.g, color.b, color.a});
-    if(!surface) return;
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    CachedText& cached = textCache[textKey(font, text, color)];
+    if(!cached.texture){
+        //  Blended gives smooth edges, unlike Solid
+        SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), SDL_Color{color.r, color.g, color.b, color.a});
+        if(!surface) return;
+        cached.texture = SDL_CreateTextureFromSurface(renderer, surface);
+        cached.w = surface->w;
+        cached.h = surface->h;
+        SDL_FreeSurface(surface);
+        if(!cached.texture) return;
+    }
+    cached.usedThisFrame = true;
 
     //  Keep the text at its real size (no stretching), only shrink it if it is too wide
-    float scale = std::min(1.0f, std::min(float(area.w) / surface->w, float(area.h) / surface->h));
-    int w = int(surface->w * scale), h = int(surface->h * scale);
-    SDL_Rect target = {area.x + (area.w - w) / 2, area.y + (area.h - h) / 2, w, h};
+    float scale = std::min(1.0f, std::min(float(area.w) / cached.w, float(area.h) / cached.h));
+    int w = int(cached.w * scale), h = int(cached.h * scale);
+    int x = align == Align::Left ? area.x : align == Align::Right ? area.x + area.w - w : area.x + (area.w - w) / 2;
+    SDL_Rect target = {x, area.y + (area.h - h) / 2, w, h};
 
-    SDL_FreeSurface(surface);
-    if(!texture) return;
-    SDL_RenderCopy(renderer, texture, NULL, &target);
-    SDL_DestroyTexture(texture);
+    SDL_RenderCopy(renderer, cached.texture, NULL, &target);
+}
+
+void endFrame(){
+    for(auto it = textCache.begin(); it != textCache.end();){
+        if(it->second.usedThisFrame){
+            it->second.usedThisFrame = false;
+            ++it;
+        }
+        else{
+            SDL_DestroyTexture(it->second.texture);
+            it = textCache.erase(it);
+        }
+    }
 }
 
 void drawBackground(SDL_Renderer* renderer){
@@ -202,27 +254,28 @@ void drawBackground(SDL_Renderer* renderer){
     SDL_RenderClear(renderer);
 }
 
-//  Letters a-h along the bottom edge and numbers 1-8 along the left edge, inside the corner
-//  of the squares like most chess sites
+//  Letters along the bottom edge and numbers along the left edge, inside the corner of the
+//  squares like most chess sites. Flipped, the bottom row is rank 8 and the left column file h.
 
-static void drawCoordinates(SDL_Renderer* renderer, TTF_Font* font){
+static void drawCoordinates(SDL_Renderer* renderer, TTF_Font* font, bool flipped){
     const int margin = 3;
     const int box = 16;
+    const int edge = flipped ? 7 : 0;
 
     for(int i = 0; i < BOARD_SIZE; i++){
-        chess::Square fileSquare = chess::makeSquare(i, 0);  // a1 to h1
-        chess::Square rankSquare = chess::makeSquare(0, i);  // a1 to a8
+        chess::Square fileSquare = chess::makeSquare(i, edge);  // along the bottom row
+        chess::Square rankSquare = chess::makeSquare(edge, i);  // along the left column
 
         auto colorOn = [](chess::Square s){
             bool dark = (chess::fileOf(s) + chess::rankOf(s)) % 2 == 0;
             return dark ? theme::CoordinateOnDark : theme::CoordinateOnLight;
         };
 
-        SDL_Rect f = squareRect(fileSquare);
+        SDL_Rect f = squareRect(fileSquare, flipped);
         drawText(renderer, font, std::string(1, char('a' + i)), colorOn(fileSquare),
                  SDL_Rect{f.x + f.w - box - margin, f.y + f.h - box - margin, box, box});
 
-        SDL_Rect r = squareRect(rankSquare);
+        SDL_Rect r = squareRect(rankSquare, flipped);
         drawText(renderer, font, std::string(1, char('1' + i)), colorOn(rankSquare),
                  SDL_Rect{r.x + margin, r.y + margin, box, box});
     }
@@ -232,40 +285,75 @@ static void drawCoordinates(SDL_Renderer* renderer, TTF_Font* font){
 //  coordinates (so pieces do not hide them), then the move hints so a capture ring shows
 //  around the piece it takes
 
-void drawBoard(SDL_Renderer* renderer, const chess::Board& board, const BoardHighlights& highlights, const Assets& assets){
+void drawBoard(SDL_Renderer* renderer, const chess::Board& board, const BoardHighlights& highlights, bool flipped, const Assets& assets){
     for(int rank = 0; rank < BOARD_SIZE; rank++){
         for(int file = 0; file < BOARD_SIZE; file++){
             chess::Square s = chess::makeSquare(file, rank);
             bool dark = (rank + file) % 2 == 0;  // a1 is dark
-            drawRect(renderer, squareRect(s), dark ? theme::DarkSquare : theme::LightSquare);
+            drawRect(renderer, squareRect(s, flipped), dark ? theme::DarkSquare : theme::LightSquare);
         }
     }
 
     if(!highlights.lastMove.isNull()){
-        drawRect(renderer, squareRect(highlights.lastMove.from()), theme::LastMove);
-        drawRect(renderer, squareRect(highlights.lastMove.to()), theme::LastMove);
+        drawRect(renderer, squareRect(highlights.lastMove.from(), flipped), theme::LastMove);
+        drawRect(renderer, squareRect(highlights.lastMove.to(), flipped), theme::LastMove);
     }
     if(highlights.selected != chess::NoSquare){
-        drawRect(renderer, squareRect(highlights.selected), theme::Selected);
+        drawRect(renderer, squareRect(highlights.selected, flipped), theme::Selected);
     }
     if(highlights.checkedKing != chess::NoSquare){
-        drawShape(renderer, assets.glow, squareRect(highlights.checkedKing), theme::Check);
+        drawShape(renderer, assets.glow, squareRect(highlights.checkedKing, flipped), theme::Check);
     }
 
     for(int rank = 0; rank < BOARD_SIZE; rank++){
         for(int file = 0; file < BOARD_SIZE; file++){
             chess::Square s = chess::makeSquare(file, rank);
             chess::Piece piece = board.pieceAt(s);
-            if(piece == chess::NoPiece) continue;
+            if(piece == chess::NoPiece || s == highlights.dragged) continue;
 
-            drawPiece(renderer, piece, squareRect(s), assets);
+            drawPiece(renderer, piece, squareRect(s, flipped), assets);
         }
     }
 
-    drawCoordinates(renderer, assets.coordinateFont);
+    drawCoordinates(renderer, assets.coordinateFont, flipped);
 
-    for(chess::Square s : highlights.quietTargets) drawShape(renderer, assets.dot, squareRect(s), theme::MoveHint);
-    for(chess::Square s : highlights.captureTargets) drawShape(renderer, assets.ring, squareRect(s), theme::MoveHint);
+    for(chess::Square s : highlights.quietTargets) drawShape(renderer, assets.dot, squareRect(s, flipped), theme::MoveHint);
+    for(chess::Square s : highlights.captureTargets) drawShape(renderer, assets.ring, squareRect(s, flipped), theme::MoveHint);
+}
+
+//  A straight arrow from the center of one square to the center of the other: a shaft and a
+//  triangular head, built from triangles (SDL_RenderGeometry) so it can point any way and be
+//  see-through without darker spots where the parts overlap
+
+void drawArrow(SDL_Renderer* renderer, chess::Square from, chess::Square to, Color color, bool flipped){
+    SDL_Rect a = squareRect(from, flipped), b = squareRect(to, flipped);
+    float x0 = a.x + a.w / 2.0f, y0 = a.y + a.h / 2.0f;
+    float x1 = b.x + b.w / 2.0f, y1 = b.y + b.h / 2.0f;
+
+    float length = std::hypot(x1 - x0, y1 - y0);
+    if(length < 1.0f) return;
+
+    //  Unit vector along the arrow, and the one perpendicular to it
+    float ux = (x1 - x0) / length, uy = (y1 - y0) / length;
+    float px = -uy, py = ux;
+
+    const float shaft = TILESIZE * 0.10f;  // half widths
+    const float head = TILESIZE * 0.25f;
+    const float headLength = TILESIZE * 0.40f;
+
+    float bx = x1 - ux * headLength, by = y1 - uy * headLength;  // where the head starts
+
+    SDL_Color c = {color.r, color.g, color.b, color.a};
+    auto vertex = [&](float x, float y){ return SDL_Vertex{SDL_FPoint{x, y}, c, SDL_FPoint{0, 0}}; };
+
+    SDL_Vertex vertices[7] = {
+        vertex(x0 + px * shaft, y0 + py * shaft), vertex(x0 - px * shaft, y0 - py * shaft),
+        vertex(bx - px * shaft, by - py * shaft), vertex(bx + px * shaft, by + py * shaft),
+        vertex(bx + px * head, by + py * head), vertex(bx - px * head, by - py * head),
+        vertex(x1, y1),
+    };
+    const int indices[9] = {0, 1, 2, 0, 2, 3, 4, 5, 6};
+    SDL_RenderGeometry(renderer, nullptr, vertices, 7, indices, 9);
 }
 
 void drawButtons(SDL_Renderer* renderer, const std::vector<Button>& buttons, TTF_Font* font){

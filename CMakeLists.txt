@@ -87,9 +87,11 @@ if(CHESS_BUILD_GUI)
     find_package(SDL2 REQUIRED CONFIG)
     find_package(SDL2_image REQUIRED CONFIG)
     find_package(SDL2_ttf REQUIRED CONFIG)
+    find_package(Threads REQUIRED)  # the bot thinks on its own thread
 
     add_executable(chess
         src/gui/app.cpp
+        src/gui/bot_player.cpp
         src/gui/button.cpp
         src/gui/draw.cpp
         src/gui/game_screen.cpp
@@ -102,8 +104,9 @@ if(CHESS_BUILD_GUI)
     endif()
 
     target_link_libraries(chess PRIVATE
-        core
+        search
         chess_options
+        Threads::Threads
         SDL2::SDL2
         SDL2_image::SDL2_image
         SDL2_ttf::SDL2_ttf
