@@ -60,6 +60,19 @@ add_executable(perft src/perft/main.cpp)
 target_link_libraries(perft PRIVATE core chess_options)
 
 
+# ---- Search: evaluation and alpha-beta, on top of core ------------------------
+
+add_library(search STATIC
+    src/search/eval.cpp
+    src/search/search.cpp
+)
+target_include_directories(search PUBLIC src)
+target_link_libraries(search PUBLIC core PRIVATE chess_options)
+
+add_executable(bestmove src/bestmove/main.cpp)
+target_link_libraries(bestmove PRIVATE search chess_options)
+
+
 # ---- Tests --------------------------------------------------------------------
 
 if(CHESS_BUILD_TESTS)
