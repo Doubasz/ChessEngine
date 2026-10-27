@@ -76,10 +76,12 @@ if(CHESS_BUILD_GUI)
     find_package(SDL2_ttf REQUIRED CONFIG)
 
     add_executable(chess
+        src/gui/app.cpp
         src/gui/button.cpp
-        src/gui/chess.cpp
         src/gui/draw.cpp
+        src/gui/game_screen.cpp
         src/gui/main.cpp
+        src/gui/menu_screen.cpp
     )
 
     if(TARGET SDL2::SDL2main)

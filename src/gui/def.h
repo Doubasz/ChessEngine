@@ -32,6 +32,7 @@
 #define FONT_PATH "sprites/fonts/DejaVuSans.ttf"
 
 //  Font sizes in pixels
+#define LOGO_FONT_SIZE 72
 #define TITLE_FONT_SIZE 30
 #define BUTTON_FONT_SIZE 20
 #define COORDINATE_FONT_SIZE 13

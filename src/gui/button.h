@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <functional>
 #include <string>
+#include <vector>
 #include "color.h"
 #include "point.h"
 
@@ -13,7 +14,8 @@ class Button{
         std::string name;
         std::string text;
         bool hover;
-        bool active;
+        bool active;  // drawn and clickable, false hides it
+        bool enabled;  // false shows it greyed out, without hover or click
         bool border;
         Color color;
         Color colorHover;
@@ -29,5 +31,7 @@ class Button{
         void updateHover(Point mouse);
 };
 
+//  Runs onClick of the active, enabled button under the mouse. false if there is none.
+bool clickButtons(const std::vector<Button>& buttons, Point mouse);
 
 #endif

@@ -8,6 +8,7 @@ Button::Button(int x, int y, int w, int h){
     rect = SDL_Rect{x, y, w, h};
     text = "";
     active = true;
+    enabled = true;
     hover = false;
     border = false;
     color = theme::Button;
@@ -26,5 +27,15 @@ bool Button::isMouseOver(Point mouse) const{
 }
 
 void Button::updateHover(Point mouse){
-    hover = isMouseOver(mouse);
+    hover = active && enabled && isMouseOver(mouse);
+}
+
+bool clickButtons(const std::vector<Button>& buttons, Point mouse){
+    for(const Button& button : buttons){
+        if(!button.active || !button.enabled || !button.isMouseOver(mouse) || !button.onClick) continue;
+
+        button.onClick();
+        return true;
+    }
+    return false;
 }
