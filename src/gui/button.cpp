@@ -34,15 +34,15 @@ Button::~Button(){
 
 
 
-bool Button::isHover(){
+bool Button::isHover() const{
     return hover;
 }
 
-bool Button::isMouseOver(Position mouse){
+bool Button::isMouseOver(Point mouse) const{
     return mouse.x > rect.x && mouse.x < (rect.x + rect.w) && mouse.y > rect.y && mouse.y < (rect.y + rect.h);
 }
 
-void Button::updateHover(Position mouse){
+void Button::updateHover(Point mouse){
     hover = (isMouseOver(mouse)) ? true : false;
 }
 

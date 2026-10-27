@@ -89,7 +89,6 @@ if(CHESS_BUILD_GUI)
     find_package(SDL2_ttf REQUIRED CONFIG)
 
     add_executable(chess
-        src/gui/bot.cpp
         src/gui/button.cpp
         src/gui/chess.cpp
         src/gui/color.cpp
@@ -102,7 +101,7 @@ if(CHESS_BUILD_GUI)
     endif()
 
     target_link_libraries(chess PRIVATE
-        engine
+        core
         chess_options
         SDL2::SDL2
         SDL2_image::SDL2_image
