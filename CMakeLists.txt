@@ -60,6 +60,19 @@ add_executable(perft src/perft/main.cpp)
 target_link_libraries(perft PRIVATE core chess_options)
 
 
+# ---- Search: evaluation and alpha-beta, on top of core ------------------------
+
+add_library(search STATIC
+    src/search/eval.cpp
+    src/search/search.cpp
+)
+target_include_directories(search PUBLIC src)
+target_link_libraries(search PUBLIC core PRIVATE chess_options)
+
+add_executable(bestmove src/bestmove/main.cpp)
+target_link_libraries(bestmove PRIVATE search chess_options)
+
+
 # ---- Tests --------------------------------------------------------------------
 
 if(CHESS_BUILD_TESTS)
@@ -74,9 +87,11 @@ if(CHESS_BUILD_GUI)
     find_package(SDL2 REQUIRED CONFIG)
     find_package(SDL2_image REQUIRED CONFIG)
     find_package(SDL2_ttf REQUIRED CONFIG)
+    find_package(Threads REQUIRED)  # the bot thinks on its own thread
 
     add_executable(chess
         src/gui/app.cpp
+        src/gui/bot_player.cpp
         src/gui/button.cpp
         src/gui/draw.cpp
         src/gui/game_screen.cpp
@@ -89,8 +104,9 @@ if(CHESS_BUILD_GUI)
     endif()
 
     target_link_libraries(chess PRIVATE
-        core
+        search
         chess_options
+        Threads::Threads
         SDL2::SDL2
         SDL2_image::SDL2_image
         SDL2_ttf::SDL2_ttf

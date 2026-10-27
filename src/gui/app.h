@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <memory>
 #include "draw.h"
+#include "game_setup.h"
 #include "screen.h"
 
 //  Owns the window, the renderer and the assets, and runs the current screen.
@@ -21,7 +22,7 @@ class App{
         void run();
 
         void showMenu();
-        void startGame();
+        void startGame(const GameSetup& setup);
         void quit();
 
         const Assets& assets() const;

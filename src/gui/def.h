@@ -34,6 +34,7 @@
 //  Font sizes in pixels
 #define LOGO_FONT_SIZE 72
 #define TITLE_FONT_SIZE 30
+#define INFO_FONT_SIZE 16
 #define BUTTON_FONT_SIZE 20
 #define COORDINATE_FONT_SIZE 13
 

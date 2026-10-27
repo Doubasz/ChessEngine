@@ -19,7 +19,8 @@ App::App(){
     }
 
     window = SDL_CreateWindow("Chess", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, 0);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    //  VSync shows each frame in step with the screen refresh: no tearing and an even pace
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if(!window || !renderer){
         std::cerr << "Failed to create the window: " << SDL_GetError() << std::endl;
         exit(1);
@@ -54,8 +55,8 @@ void App::showMenu(){
     nextScreen = std::make_unique<MenuScreen>(*this);
 }
 
-void App::startGame(){
-    nextScreen = std::make_unique<GameScreen>(*this);
+void App::startGame(const GameSetup& setup){
+    nextScreen = std::make_unique<GameScreen>(*this, setup);
 }
 
 void App::quit(){
@@ -90,8 +91,9 @@ void App::run(){
         drawBackground(renderer);
         screen->draw(renderer);
         SDL_RenderPresent(renderer);
+        endFrame();
 
-        //  Cap FPS
+        //  Cap FPS, in case VSync is not available (it already waits for the screen otherwise)
         Uint32 frameTime = SDL_GetTicks() - frameStart;
         if(frameTime < frameDelay) SDL_Delay(frameDelay - frameTime);
     }
