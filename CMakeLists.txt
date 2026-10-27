@@ -38,24 +38,26 @@ if(CHESS_SANITIZERS)
 endif()
 
 
-# ---- Engine: rules, move generation, perft. No dependency on SDL -------------
+# ---- Core: board, rules, move generation, perft. No dependency on SDL --------
+#
+#  Headers are included with their directory ("core/board.h"), so the search can later sit
+#  next to it in src/search without name clashes.
 
-add_library(engine STATIC
-    src/engine/board.cpp
-    src/engine/GameState.cpp
-    src/engine/move.cpp
-    src/engine/perft.cpp
-    src/engine/position.cpp
-    src/engine/tile.cpp
+add_library(core STATIC
+    src/core/board.cpp
+    src/core/move.cpp
+    src/core/movegen.cpp
+    src/core/perft.cpp
+    src/core/types.cpp
 )
-target_include_directories(engine PUBLIC src/engine)
-target_link_libraries(engine PRIVATE chess_options)
+target_include_directories(core PUBLIC src)
+target_link_libraries(core PRIVATE chess_options)
 
 
 # ---- Perft command line tool --------------------------------------------------
 
 add_executable(perft src/perft/main.cpp)
-target_link_libraries(perft PRIVATE engine chess_options)
+target_link_libraries(perft PRIVATE core chess_options)
 
 
 # ---- Tests --------------------------------------------------------------------
@@ -74,7 +76,6 @@ if(CHESS_BUILD_GUI)
     find_package(SDL2_ttf REQUIRED CONFIG)
 
     add_executable(chess
-        src/gui/bot.cpp
         src/gui/button.cpp
         src/gui/chess.cpp
         src/gui/color.cpp
@@ -87,7 +88,7 @@ if(CHESS_BUILD_GUI)
     endif()
 
     target_link_libraries(chess PRIVATE
-        engine
+        core
         chess_options
         SDL2::SDL2
         SDL2_image::SDL2_image

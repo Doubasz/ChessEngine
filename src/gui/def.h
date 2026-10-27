@@ -7,6 +7,7 @@
 #define WIDTH 1200
 #define HEIGHT 800
 
+#define BOARD_SIZE 8
 #define TILESIZE 75
 #define STARTING_POSX 300
 #define STARTING_POSY 100

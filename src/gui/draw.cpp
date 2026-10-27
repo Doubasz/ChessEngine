@@ -1,16 +1,15 @@
 #include "draw.h"
 #include "def.h"
-#include "board.h"
 #include "color.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <algorithm>
 #include <vector>
-#include <cstring>
 #include <iostream>
 #include <string>
 
 
-//  Indexed by piece + color - 1 (see Piece enum and WHITE/BLACK in tile.h)
+//  Pieces first, in the order of textureIndex: white pawn to king, then black pawn to king
 
 static const std::string TEXTURES_PATHS[NUM_PATHS] = {
     WPAWN_PATH,
@@ -28,126 +27,117 @@ static const std::string TEXTURES_PATHS[NUM_PATHS] = {
     UNDO_REDO,
 };
 
+const chess::PieceType PromotionChoices[4] = {chess::Queen, chess::Rook, chess::Bishop, chess::Knight};
 
-
-
-
-
-SDL_Texture* loadTexture(SDL_Renderer* renderer, char* path){
-    SDL_Texture* texture;
-
-    SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Loading %s", path);
-
-    texture = IMG_LoadTexture(renderer, path);
-
-    return texture;
+static int textureIndex(chess::Piece piece){
+    return chess::colorOf(piece) * 6 + chess::typeOf(piece) - 1;
 }
 
 
+
+SDL_Rect squareRect(chess::Square s){
+    int row = 7 - chess::rankOf(s);
+    return SDL_Rect{STARTING_POSX + chess::fileOf(s) * TILESIZE, STARTING_POSY + row * TILESIZE, TILESIZE, TILESIZE};
+}
+
+chess::Square squareAt(Point p){
+    bool inside = p.x >= STARTING_POSX && p.y >= STARTING_POSY
+               && p.x < STARTING_POSX + TILESIZE * BOARD_SIZE && p.y < STARTING_POSY + TILESIZE * BOARD_SIZE;
+    if(!inside) return chess::NoSquare;
+
+    int file = (p.x - STARTING_POSX) / TILESIZE;
+    int row = (p.y - STARTING_POSY) / TILESIZE;
+    return chess::makeSquare(file, 7 - row);
+}
+
+SDL_Rect promotionPickerRect(){
+    int x = (STARTING_POSX + (TILESIZE * BOARD_SIZE)) / 2;
+    int y = STARTING_POSY - (20 + TILESIZE);  // 20 pixels above the board
+    return SDL_Rect{x, y, TILESIZE * 4, TILESIZE};
+}
+
+chess::PieceType promotionChoiceAt(Point p){
+    SDL_Rect picker = promotionPickerRect();
+    if(p.x < picker.x || p.x >= picker.x + picker.w || p.y < picker.y || p.y >= picker.y + picker.h){
+        return chess::NoPieceType;
+    }
+    return PromotionChoices[(p.x - picker.x) / TILESIZE];
+}
+
+
+
+SDL_Texture* loadTexture(SDL_Renderer* renderer, const char* path){
+    SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Loading %s", path);
+    return IMG_LoadTexture(renderer, path);
+}
 
 std::vector<SDL_Texture*> loadAllTexture(SDL_Renderer* renderer){
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
     std::vector<SDL_Texture*> textures;
-
-    for(int i = 0; i < NUM_PATHS; i++){
-
-        const char* temp = TEXTURES_PATHS[i].c_str();
-
-        char* path = new char[std::strlen(temp) + 1];
-        std::strcpy(path, temp);
-
-        textures.push_back(loadTexture(renderer, path));
-
-        delete[] path;
+    for(const std::string& path : TEXTURES_PATHS){
+        textures.push_back(loadTexture(renderer, path.c_str()));
     }
-    std::cout << "size vector: " << textures.size() << std::endl; 
     return textures;
 }
 
 
 
-void drawBackground(SDL_Renderer*& renderer){
-
+void drawBackground(SDL_Renderer* renderer){
     Color bg = Color(BG_COLOR);
 
     SDL_SetRenderDrawColor(renderer, bg.b, bg.g, bg.r, 255);
     SDL_RenderClear(renderer);
-
 }
 
+//  The squares, the highlighted ones (legal targets of the selected piece) in red
 
-
-void drawBoard(SDL_Renderer*& renderer, Board& board, Tile* selectedPiece){
-
-    Color black = Color(BLACK_TILE);
-    Color white = Color(WHITE_TILE);
+void drawBoard(SDL_Renderer* renderer, const std::vector<chess::Square>& highlighted){
+    Color dark = Color(BLACK_TILE);
+    Color light = Color(WHITE_TILE);
     Color red = Color(RED_MOVE);
-    //Color green = Color(0x278c42);
-    //Color yellow = Color(0xad953b);
 
-    Tile temp;
-    if (selectedPiece != nullptr) temp = *selectedPiece;
+    for(int rank = 0; rank < BOARD_SIZE; rank++){
+        for(int file = 0; file < BOARD_SIZE; file++){
+            chess::Square s = chess::makeSquare(file, rank);
 
+            //  a1 is a dark square
+            Color color = ((rank + file) % 2 == 0) ? dark : light;
+            if(std::find(highlighted.begin(), highlighted.end(), s) != highlighted.end()) color = red;
 
-    SDL_Rect tile = SDL_Rect{STARTING_POSX, STARTING_POSY, TILESIZE, TILESIZE};
-
-    for (int i = 0; i < BOARD; i++){
-        
-        tile.x = STARTING_POSX;
-
-        for(int j = 0; j < BOARD; j++){
-            Color currentColor = Color();
-            currentColor = (((i + j) % 2) == 0) ? white : black;
-            
-            if(!temp.legalMoves.empty()){
-                if(temp.isInLegalMoves({i, j})){
-                    currentColor = red;
-                }
-            }
-
-            drawRect(renderer, tile, currentColor, true);
-            
-            tile.x += 75;
+            drawRect(renderer, squareRect(s), color, true);
         }
-        tile.y += 75;
     }
 }
 
+void drawPieces(SDL_Renderer* renderer, const chess::Board& board, const std::vector<SDL_Texture*>& textures){
+    for(int rank = 0; rank < BOARD_SIZE; rank++){
+        for(int file = 0; file < BOARD_SIZE; file++){
+            chess::Square s = chess::makeSquare(file, rank);
+            chess::Piece piece = board.pieceAt(s);
 
-
-void drawPieces(SDL_Renderer*& renderer, Board& board, std::vector<SDL_Texture*> textures){
-    for(int i = 0; i < BOARD; i++){
-        for(int j = 0; j < BOARD; j++){
-            SDL_Rect tile = SDL_Rect{STARTING_POSX + j * TILESIZE, STARTING_POSY + i * TILESIZE, TILESIZE, TILESIZE};
-
-            if (board.tiles[i][j].piece != 0) {
-                drawPiece(renderer, textures[(board.tiles[i][j].piece + board.tiles[i][j].color) - 1], tile);
+            if(piece != chess::NoPiece){
+                SDL_Rect rect = squareRect(s);
+                drawPiece(renderer, textures[textureIndex(piece)], rect);
             }
         }
     }
-
 }
 
-void drawButtons(SDL_Renderer*& renderer, std::vector<Button> buttons, TTF_Font* font){
-    for(Button button : buttons){
+void drawButtons(SDL_Renderer* renderer, const std::vector<Button>& buttons, TTF_Font* font){
+    for(const Button& button : buttons){
         if(button.active){
             drawButton(renderer, button, font);
         }
     }
 }
 
+void drawButton(SDL_Renderer* renderer, const Button& button, TTF_Font* font){
 
-
-void drawButton(SDL_Renderer*& renderer, Button button, TTF_Font* font){
-
-    if(button.isHover()){
-        drawRect(renderer, button.rect, button.colorHover, button.border);
-    }
-    else drawRect(renderer, button.rect, button.color, button.border);
+    drawRect(renderer, button.rect, button.hover ? button.colorHover : button.color, button.border);
 
     if(button.text != ""){
-        SDL_Surface* textSurface = TTF_RenderText_Solid(font, button.text.c_str(), SDL_Color{button.colorText.r, button.colorText.g, button.colorText.b});
+        SDL_Surface* textSurface = TTF_RenderText_Solid(font, button.text.c_str(), SDL_Color{button.colorText.r, button.colorText.g, button.colorText.b, 255});
 
         if (!textSurface) {
             std::cerr << "Failed to create text surface: " << TTF_GetError() << std::endl;
@@ -162,8 +152,7 @@ void drawButton(SDL_Renderer*& renderer, Button button, TTF_Font* font){
     }
 }
 
-
-void drawRect(SDL_Renderer*& renderer, SDL_Rect rect, Color color, bool border){
+void drawRect(SDL_Renderer* renderer, SDL_Rect rect, Color color, bool border){
 
     SDL_SetRenderDrawColor(renderer, color.b, color.g, color.r, 255);
     SDL_RenderFillRect(renderer, &rect);
@@ -172,41 +161,19 @@ void drawRect(SDL_Renderer*& renderer, SDL_Rect rect, Color color, bool border){
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderDrawRect(renderer, &rect);
     }
-    
-    
 }
 
-
-
 void drawPiece(SDL_Renderer* renderer, SDL_Texture* texture, SDL_Rect& rect){
-
-    int textureWidth, textureHeight;
-    SDL_QueryTexture(texture, NULL, NULL, &textureWidth, &textureHeight);
     SDL_RenderCopy(renderer, texture, NULL, &rect);
 }
 
-
-
-
-void drawPromotion(SDL_Renderer*& renderer, Board& board, Tile target, std::vector<SDL_Texture*> textures){
-    int x = (STARTING_POSX + (TILESIZE * BOARD)) / 2; // get the middle of the board (used it as a default value)
-    int y = STARTING_POSY - (20 + TILESIZE); // up the y of the board by 20, why 20? because it looks good
-
-    int width = (TILESIZE * 4); // 4 is the number of piece (q, b, n, r)
-    int height = TILESIZE;
-
-    Color colorRect = 0xD9D9D9;
-    SDL_Rect rect = SDL_Rect{x, y, width, height};
-
-    int colorPiece = target.color;
-
-    drawRect(renderer, rect, colorRect, true);
+void drawPromotion(SDL_Renderer* renderer, chess::Color side, const std::vector<SDL_Texture*>& textures){
+    SDL_Rect rect = promotionPickerRect();
+    drawRect(renderer, rect, Color(0xD9D9D9), true);
 
     rect.w = TILESIZE;
-
-    for(int i = 4; i > 0; i--){
-        drawPiece(renderer, textures[i + colorPiece], rect);
+    for(chess::PieceType type : PromotionChoices){
+        drawPiece(renderer, textures[textureIndex(chess::makePiece(side, type))], rect);
         rect.x += TILESIZE;
     }
-
 }

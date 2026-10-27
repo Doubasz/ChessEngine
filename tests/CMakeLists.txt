@@ -2,8 +2,8 @@
 #
 #  Each test runs the perft tool on a position and checks the total node count.
 #  Expected counts are the standard ones from https://www.chessprogramming.org/Perft_Results
-#  (cross-checked with python-chess). Depths are kept low so the whole suite runs in seconds,
-#  even in Debug with sanitizers.
+#  (cross-checked with python-chess, which also gave the position6 count: that FEN differs slightly
+#  from the wiki's). Depths are picked so the whole suite runs in seconds, even in Debug with sanitizers.
 
 #  add_perft_test(<name> <depth> <expected nodes> <fen> [KNOWN_BUG <reason>])
 #
@@ -31,29 +31,43 @@ function(add_perft_test name depth expected fen)
 endfunction()
 
 
-add_perft_test(startpos 4 197281
+add_perft_test(startpos 5 4865609
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
-add_perft_test(kiwipete 3 97862
+add_perft_test(kiwipete 4 4085603
     "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
 
-add_perft_test(position3 4 43238
+add_perft_test(position3 5 674624
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")
 
-add_perft_test(position4 3 9467
+add_perft_test(position4 4 422333
     "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
 
-add_perft_test(position5 3 62379
+add_perft_test(position5 4 2103487
     "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
 
-add_perft_test(position6 3 81467
+add_perft_test(position6 4 3065277
     "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P3/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10")
 
 
-# ---- Game status tests ----------------------------------------------------------
+# ---- Unit tests (GoogleTest) --------------------------------------------------
 #
-#  Checkmate, stalemate and fifty move rule detection on hand-picked positions.
+#  GoogleTest is downloaded at configure time, pinned to a release archive.
+#  gtest_discover_tests registers every TEST() as its own ctest entry (core.Fen.RoundTrip, ...).
 
-add_executable(game_status_test game_status_test.cpp)
-target_link_libraries(game_status_test PRIVATE engine chess_options)
-add_test(NAME game_status COMMAND game_status_test)
+include(FetchContent)
+FetchContent_Declare(googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+include(GoogleTest)
+
+add_executable(core_tests
+    core/fen_test.cpp
+    core/movegen_test.cpp
+)
+target_link_libraries(core_tests PRIVATE core chess_options GTest::gtest_main)
+gtest_discover_tests(core_tests TEST_PREFIX "core.")
