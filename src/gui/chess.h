@@ -20,6 +20,7 @@ class Chess{
         std::vector<Button> buttons;
         TTF_Font* font;
         Board board;
+        GameStatus gameStatus;
 
         bool quit;
 
@@ -35,6 +36,7 @@ class Chess{
         void handleClick(Position mouse);
         Button* getButton(std::string name);
         void runNewGame();
+        void updateGameStatus();
         void runPerft();
         void getFen();
         void printMoves();
