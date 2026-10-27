@@ -1,42 +1,30 @@
-#ifndef _CHESS
-#define _CHESS
+#ifndef GAME_SCREEN_H
+#define GAME_SCREEN_H
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <string>
 #include <vector>
 #include "core/board.h"
-#include "draw.h"
 #include "button.h"
-#include "def.h"
-#include "point.h"
+#include "draw.h"
+#include "screen.h"
 
+class App;
 
+//  A game between two players at the same computer, with undo/redo and a few debug tools
 
-class Chess{
+class GameScreen : public Screen{
     public:
-        SDL_Window* window;
-        SDL_Renderer* renderer;
-        Assets assets;
+        explicit GameScreen(App& app);
+
+        void handleEvent(const SDL_Event& event) override;
+        void update(Point mouse) override;
+        void draw(SDL_Renderer* renderer) override;
+
+    private:
+        App& app;
         std::vector<Button> buttons;
         chess::Board board;
 
-        bool quit;
-
-        Chess();
-        ~Chess();
-
-        void gameLoop();
-        void draw();
-        void doInput();
-
-        void handleClick(Point mouse);
-        void runNewGame();
-        void runPerft();
-        void getFen();
-        void printMoves();
-
-    private:
         //  Everything that depends on the position, recomputed by onPositionChanged after every change
         chess::MoveList legalMoves;
         chess::GameStatus gameStatus = chess::GameStatus::Ongoing;
@@ -58,9 +46,13 @@ class Chess{
         void playMove(chess::Move m);
         void undoMove();
         void redoMove();
+        void newGame();
         BoardHighlights highlights() const;
+
+        //  Debug tools, they print to the console
+        void printFen();
+        void printMoves();
+        void runPerft();
 };
-
-
 
 #endif

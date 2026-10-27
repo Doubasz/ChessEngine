@@ -110,11 +110,13 @@ bool loadAssets(SDL_Renderer* renderer, Assets& assets){
     assets.glow = createShapeTexture(renderer, Shape::Glow);
     if(!assets.dot || !assets.ring || !assets.glow) return false;
 
+    assets.logoFont = TTF_OpenFont(FONT_PATH, LOGO_FONT_SIZE);
     assets.titleFont = TTF_OpenFont(FONT_PATH, TITLE_FONT_SIZE);
     assets.buttonFont = TTF_OpenFont(FONT_PATH, BUTTON_FONT_SIZE);
     assets.coordinateFont = TTF_OpenFont(FONT_PATH, COORDINATE_FONT_SIZE);
-    if(!assets.titleFont || !assets.buttonFont || !assets.coordinateFont) return false;
+    if(!assets.logoFont || !assets.titleFont || !assets.buttonFont || !assets.coordinateFont) return false;
 
+    TTF_SetFontStyle(assets.logoFont, TTF_STYLE_BOLD);
     TTF_SetFontStyle(assets.coordinateFont, TTF_STYLE_BOLD);
     return true;
 }
@@ -127,7 +129,7 @@ void freeAssets(Assets& assets){
         if(*texture) SDL_DestroyTexture(*texture);
         *texture = nullptr;
     }
-    for(TTF_Font** font : {&assets.titleFont, &assets.buttonFont, &assets.coordinateFont}){
+    for(TTF_Font** font : {&assets.logoFont, &assets.titleFont, &assets.buttonFont, &assets.coordinateFont}){
         if(*font) TTF_CloseFont(*font);
         *font = nullptr;
     }
@@ -256,8 +258,7 @@ void drawBoard(SDL_Renderer* renderer, const chess::Board& board, const BoardHig
             chess::Piece piece = board.pieceAt(s);
             if(piece == chess::NoPiece) continue;
 
-            SDL_Rect rect = squareRect(s);
-            SDL_RenderCopy(renderer, assets.pieces[textureIndex(piece)], NULL, &rect);
+            drawPiece(renderer, piece, squareRect(s), assets);
         }
     }
 
@@ -271,9 +272,18 @@ void drawButtons(SDL_Renderer* renderer, const std::vector<Button>& buttons, TTF
     for(const Button& button : buttons){
         if(!button.active) continue;
 
+        if(!button.enabled){
+            drawRect(renderer, button.rect, theme::ButtonDisabled);
+            drawText(renderer, font, button.text, theme::ButtonTextDisabled, button.rect);
+            continue;
+        }
         drawRect(renderer, button.rect, button.hover ? button.colorHover : button.color);
         drawText(renderer, font, button.text, button.colorText, button.rect);
     }
+}
+
+void drawPiece(SDL_Renderer* renderer, chess::Piece piece, SDL_Rect rect, const Assets& assets){
+    SDL_RenderCopy(renderer, assets.pieces[textureIndex(piece)], NULL, &rect);
 }
 
 void drawPromotion(SDL_Renderer* renderer, chess::Color side, Point mouse, const Assets& assets){
@@ -285,7 +295,7 @@ void drawPromotion(SDL_Renderer* renderer, chess::Color side, Point mouse, const
 
     for(chess::PieceType type : PromotionChoices){
         if(type == hovered) drawRect(renderer, rect, theme::PickerHover);
-        SDL_RenderCopy(renderer, assets.pieces[textureIndex(chess::makePiece(side, type))], NULL, &rect);
+        drawPiece(renderer, chess::makePiece(side, type), rect, assets);
         rect.x += TILESIZE;
     }
 }

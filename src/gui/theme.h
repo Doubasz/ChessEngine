@@ -26,6 +26,8 @@ namespace theme{
     constexpr Color Button = Color(0x45423E);
     constexpr Color ButtonHover = Color(0x5A5650);
     constexpr Color ButtonText = Text;
+    constexpr Color ButtonDisabled = Color(0x3A3835);
+    constexpr Color ButtonTextDisabled = Color(0x7A7671);
 
     constexpr Color PickerBackground = Color(0xE8E6E3);
     constexpr Color PickerHover = Color(0xCDD26A);

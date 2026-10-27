@@ -21,6 +21,7 @@ struct Assets{
     SDL_Texture* ring = nullptr;  // legal capture
     SDL_Texture* glow = nullptr;  // king in check
 
+    TTF_Font* logoFont = nullptr;  // the big title of the menu
     TTF_Font* titleFont = nullptr;
     TTF_Font* buttonFont = nullptr;
     TTF_Font* coordinateFont = nullptr;
@@ -54,6 +55,7 @@ chess::PieceType promotionChoiceAt(Point p);
 
 void drawBackground(SDL_Renderer* renderer);
 void drawBoard(SDL_Renderer* renderer, const chess::Board& board, const BoardHighlights& highlights, const Assets& assets);
+void drawPiece(SDL_Renderer* renderer, chess::Piece piece, SDL_Rect rect, const Assets& assets);
 void drawButtons(SDL_Renderer* renderer, const std::vector<Button>& buttons, TTF_Font* font);
 void drawPromotion(SDL_Renderer* renderer, chess::Color side, Point mouse, const Assets& assets);
 

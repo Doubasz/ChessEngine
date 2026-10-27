@@ -1,6 +1,7 @@
-
-#include "chess.h"
+#include "game_screen.h"
+#include "app.h"
 #include "core/perft.h"
+#include "def.h"
 #include "theme.h"
 #include <iostream>
 
@@ -8,33 +9,7 @@ using namespace std;
 
 
 
-Chess::Chess(){
-    int windowFlags = 0;
-    int rendererFlags = SDL_RENDERER_ACCELERATED;
-
-    if(SDL_Init(SDL_INIT_VIDEO) < 0){
-        cout << "Couldn't init SDL" << endl;
-        exit(1);
-    }
-
-    if (TTF_Init() == -1) {
-        std::cerr << "TTF_Init failed: " << TTF_GetError() << std::endl;
-        exit(1);
-    }
-
-    window = SDL_CreateWindow("Chess", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, windowFlags);
-    renderer = SDL_CreateRenderer(window, -1, rendererFlags);
-
-    //  Blending so the highlight colors with an alpha below 255 are see-through
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-    if(!loadAssets(renderer, assets)){
-        std::cerr << "Failed to load assets: " << SDL_GetError() << " " << TTF_GetError() << std::endl;
-        exit(1);
-    }
-
-    quit = false;
-
+GameScreen::GameScreen(App& app) : app(app){
     //  Undo and redo centered under the board
     int undoW = 110, undoH = 44, undoGap = 20;
     int undoX = STARTING_POSX + (TILESIZE * BOARD_SIZE) / 2 - undoW - undoGap / 2;
@@ -66,26 +41,15 @@ Chess::Chess(){
 
     buttons.push_back(undo);
     buttons.push_back(redo);
-    buttons.push_back(sideButton("newGame", "New Game", [this]() { runNewGame(); }));
-    buttons.push_back(sideButton("getFen", "Get fen", [this]() { getFen(); }));
+    buttons.push_back(sideButton("newGame", "New Game", [this]() { newGame(); }));
+    buttons.push_back(sideButton("menu", "Main Menu", [this]() { this->app.showMenu(); }));
+
+    sideY += sideH;  // the debug tools a little apart
+    buttons.push_back(sideButton("getFen", "Get fen", [this]() { printFen(); }));
     buttons.push_back(sideButton("prntMoves", "Get List Moves", [this]() { printMoves(); }));
     buttons.push_back(sideButton("perft", "Run perft", [this]() { runPerft(); }));
 
     onPositionChanged();
-}
-
-Chess::~Chess(){
-    freeAssets(assets);
-    if (renderer) {
-        SDL_DestroyRenderer(renderer);
-        renderer = nullptr;
-    }
-    if (window) {
-        SDL_DestroyWindow(window);
-        window = nullptr;
-    }
-    TTF_Quit();
-    SDL_Quit();
 }
 
 
@@ -95,7 +59,7 @@ Chess::~Chess(){
 //  Called after anything changes the position: recomputes the legal moves and the status,
 //  drops the selection and updates the status line
 
-void Chess::onPositionChanged(){
+void GameScreen::onPositionChanged(){
     board.generateLegalMoves(legalMoves);
     gameStatus = board.status();
     selectedSquare = chess::NoSquare;
@@ -119,13 +83,13 @@ void Chess::onPositionChanged(){
     }
 }
 
-void Chess::playMove(chess::Move m){
+void GameScreen::playMove(chess::Move m){
     board.makeMove(m);
     redoStack.clear();  // a new move starts a new line, the old one cannot be redone
     onPositionChanged();
 }
 
-void Chess::undoMove(){
+void GameScreen::undoMove(){
     chess::Move last = board.lastMove();
     if(last.isNull()) return;
 
@@ -134,7 +98,7 @@ void Chess::undoMove(){
     onPositionChanged();
 }
 
-void Chess::redoMove(){
+void GameScreen::redoMove(){
     if(redoStack.empty()) return;
 
     board.makeMove(redoStack.back());
@@ -142,13 +106,13 @@ void Chess::redoMove(){
     onPositionChanged();
 }
 
-void Chess::runNewGame(){
+void GameScreen::newGame(){
     board = chess::Board();
     redoStack.clear();
     onPositionChanged();
 }
 
-void Chess::printMoves(){
+void GameScreen::printMoves(){
     cout << "Moves: ";
     for(size_t i = 0; i < legalMoves.size(); i++){
         cout << legalMoves[i].toUci();
@@ -157,11 +121,11 @@ void Chess::printMoves(){
     cout << "\nnbMoves: " << legalMoves.size() << endl;
 }
 
-void Chess::getFen(){
+void GameScreen::printFen(){
     cout << board.fen() << endl;
 }
 
-void Chess::runPerft(){
+void GameScreen::runPerft(){
     const int limit = 4;
 
     for(int depth = 1; depth <= limit; depth++){
@@ -177,7 +141,7 @@ void Chess::runPerft(){
 //  First click selects one of our pieces, second click on one of its targets plays the move.
 //  Clicking another of our pieces selects it instead, clicking anywhere else deselects.
 
-void Chess::onSquareClicked(chess::Square s){
+void GameScreen::onSquareClicked(chess::Square s){
     if(gameStatus != chess::GameStatus::Ongoing) return;  // only undo or new game once it is over
 
     if(selectedSquare != chess::NoSquare){
@@ -200,7 +164,7 @@ void Chess::onSquareClicked(chess::Square s){
 
 //  A click on a piece of the picker plays the promotion with it, anywhere else cancels it
 
-void Chess::onPromotionClicked(Point mouse){
+void GameScreen::onPromotionClicked(Point mouse){
     chess::PieceType choice = promotionChoiceAt(mouse);
     chess::Move pawnMove = pendingPromotion;
 
@@ -210,7 +174,7 @@ void Chess::onPromotionClicked(Point mouse){
     playMove(chess::Move(pawnMove.from(), pawnMove.to(), pawnMove.kind(), choice));
 }
 
-BoardHighlights Chess::highlights() const{
+BoardHighlights GameScreen::highlights() const{
     BoardHighlights h;
     h.lastMove = board.lastMove();
     h.selected = selectedSquare;
@@ -232,10 +196,53 @@ BoardHighlights Chess::highlights() const{
 
 
 
-// ---- Loop ---------------------------------------------------------------------
+// ---- Screen -------------------------------------------------------------------
 
-void Chess::draw(){
-    drawBackground(renderer);
+void GameScreen::handleEvent(const SDL_Event& event){
+    switch(event.type){
+        case SDL_MOUSEBUTTONDOWN:
+            if(event.button.button == SDL_BUTTON_LEFT){
+                Point pressedAt = {event.button.x, event.button.y};
+
+                if(pendingPromotion.isNull()) clickButtons(buttons, pressedAt);
+                pressedSquare = squareAt(pressedAt);
+            }
+            break;
+
+        case SDL_MOUSEBUTTONUP:
+            if(event.button.button == SDL_BUTTON_LEFT){
+                Point releasedAt = {event.button.x, event.button.y};
+
+                if(!pendingPromotion.isNull()){
+                    onPromotionClicked(releasedAt);
+                }
+                //  A click is a press and a release on the same square, dragging off cancels it
+                else if(squareAt(releasedAt) == pressedSquare){
+                    onSquareClicked(pressedSquare);
+                }
+                pressedSquare = chess::NoSquare;
+            }
+            break;
+
+        case SDL_KEYDOWN:
+            if(event.key.keysym.sym == SDLK_LEFT) undoMove();
+            else if(event.key.keysym.sym == SDLK_RIGHT) redoMove();
+            else if(event.key.keysym.sym == SDLK_ESCAPE) app.showMenu();
+            break;
+
+        default:
+            break;
+    }
+}
+
+void GameScreen::update(Point mouse){
+    this->mouse = mouse;
+    for(Button& b : buttons) b.updateHover(mouse);
+}
+
+void GameScreen::draw(SDL_Renderer* renderer){
+    const Assets& assets = app.assets();
+
     drawBoard(renderer, board, highlights(), assets);
     drawButtons(renderer, buttons, assets.buttonFont);
 
@@ -245,82 +252,5 @@ void Chess::draw(){
     else{
         SDL_Rect statusArea = {STARTING_POSX, 20, TILESIZE * BOARD_SIZE, 60};
         drawText(renderer, assets.titleFont, statusText, theme::Text, statusArea);
-    }
-    SDL_RenderPresent(renderer);
-}
-
-void Chess::gameLoop(){
-    const int FPS = 60;
-    const int frameDelay = 1000 / FPS;
-
-    while(!quit){
-        Uint32 frameStart = SDL_GetTicks();
-
-        draw();
-        doInput();
-
-        //  Cap FPS
-        int frameTime = SDL_GetTicks() - frameStart;
-        if (frameTime < frameDelay) {
-            SDL_Delay(frameDelay - frameTime);
-        }
-    }
-}
-
-void Chess::doInput(){
-    SDL_GetMouseState(&mouse.x, &mouse.y);
-
-    for(Button& b: buttons){
-        b.updateHover(mouse);
-    }
-
-    SDL_Event event;
-
-    while(SDL_PollEvent(&event)){
-        switch(event.type){
-            case SDL_QUIT:
-                quit = true;
-                break;
-
-            case SDL_MOUSEBUTTONDOWN:
-                if (event.button.button == SDL_BUTTON_LEFT){
-                    Point pressedAt = {event.button.x, event.button.y};
-
-                    if(pendingPromotion.isNull()) handleClick(pressedAt);
-                    pressedSquare = squareAt(pressedAt);
-                }
-                break;
-
-            case SDL_MOUSEBUTTONUP:
-                if (event.button.button == SDL_BUTTON_LEFT){
-                    Point releasedAt = {event.button.x, event.button.y};
-
-                    if(!pendingPromotion.isNull()){
-                        onPromotionClicked(releasedAt);
-                    }
-                    //  A click is a press and a release on the same square, dragging off cancels it
-                    else if(squareAt(releasedAt) == pressedSquare){
-                        onSquareClicked(pressedSquare);
-                    }
-                    pressedSquare = chess::NoSquare;
-                }
-                break;
-
-            case SDL_KEYDOWN:
-                if(event.key.keysym.sym == SDLK_LEFT) undoMove();
-                else if (event.key.keysym.sym == SDLK_RIGHT) redoMove();
-                break;
-
-            default:
-                break;
-        }
-    }
-}
-
-void Chess::handleClick(Point mouse){
-    for(const Button& button : buttons){
-        if(button.isMouseOver(mouse) && button.onClick != nullptr){
-            button.onClick();
-        }
     }
 }
