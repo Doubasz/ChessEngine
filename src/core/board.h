@@ -52,9 +52,13 @@ public:
     //  The legal move written as uci (e2e4, e7e8q), or the null move if there is none
     Move moveFromUci(std::string_view uci);
 
-    //  m must be legal in this position. unmakeMove takes back the last move made.
+    //  m must be legal in this position. unmakeMove takes back the last move made,
+    //  there must be one (lastMove() is not null).
     void makeMove(Move m);
     void unmakeMove();
+
+    //  The move unmakeMove would take back, the null move if none was made since setFen
+    Move lastMove() const { return history_.empty() ? Move() : history_.back().move; }
 
     GameStatus status();
 

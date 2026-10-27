@@ -174,6 +174,26 @@ TEST(MakeMove, CountersAndEnPassantSquare) {
     EXPECT_EQ(board.enPassantSquare(), E6);
 }
 
+TEST(MakeMove, LastMoveFollowsMakeAndUnmake) {
+    Board board;
+    EXPECT_TRUE(board.lastMove().isNull());
+
+    Move e4 = board.moveFromUci("e2e4");
+    board.makeMove(e4);
+    Move e5 = board.moveFromUci("e7e5");
+    board.makeMove(e5);
+    EXPECT_EQ(board.lastMove(), e5);
+
+    board.unmakeMove();
+    EXPECT_EQ(board.lastMove(), e4);
+    board.unmakeMove();
+    EXPECT_TRUE(board.lastMove().isNull());
+
+    board.makeMove(e4);
+    ASSERT_TRUE(board.setFen(Board::StartFen));
+    EXPECT_TRUE(board.lastMove().isNull());  // a new position has no history
+}
+
 //  The most important property: every move taken back leaves the exact same position,
 //  checked on positions full of castling, en passant and promotions
 TEST(MakeMove, UnmakeRestoresThePositionForEveryMove) {
