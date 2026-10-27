@@ -57,3 +57,25 @@ add_perft_test(position6 3 81467
 add_executable(game_status_test game_status_test.cpp)
 target_link_libraries(game_status_test PRIVATE engine chess_options)
 add_test(NAME game_status COMMAND game_status_test)
+
+
+# ---- Unit tests (GoogleTest) --------------------------------------------------
+#
+#  GoogleTest is downloaded at configure time, pinned to a release archive.
+#  gtest_discover_tests registers every TEST() as its own ctest entry (core.Fen.RoundTrip, ...).
+
+include(FetchContent)
+FetchContent_Declare(googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+include(GoogleTest)
+
+add_executable(core_tests
+    core/fen_test.cpp
+)
+target_link_libraries(core_tests PRIVATE core chess_options GTest::gtest_main)
+gtest_discover_tests(core_tests TEST_PREFIX "core.")
