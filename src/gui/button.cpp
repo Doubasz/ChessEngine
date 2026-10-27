@@ -1,35 +1,18 @@
 
-
 #include "button.h"
+#include "theme.h"
 
-Button::Button(){
-    rect = SDL_Rect{0, 0, 0, 0};
-    text = "";
-    active = true;
-    hover = false;
-    border = true;
-    color = Color(0xACACAC);
-
-    int amount = 30;
-    colorHover = darkenColor(color, amount);
-    colorText = Color(0);
-}
+Button::Button() : Button(0, 0, 0, 0){}
 
 Button::Button(int x, int y, int w, int h){
     rect = SDL_Rect{x, y, w, h};
     text = "";
     active = true;
     hover = false;
-    border = true;
-    color = Color(0xACACAC);
-
-    int amount = 30;
-    colorHover = darkenColor(color, amount);
-    colorText = Color(0);
-}
-
-Button::~Button(){
-
+    border = false;
+    color = theme::Button;
+    colorHover = theme::ButtonHover;
+    colorText = theme::ButtonText;
 }
 
 
@@ -43,14 +26,5 @@ bool Button::isMouseOver(Point mouse) const{
 }
 
 void Button::updateHover(Point mouse){
-    hover = (isMouseOver(mouse)) ? true : false;
-}
-
-
-Color darkenColor(Color color, int amount) {
-    return {
-        (Uint8)std::max(0, color.r - amount),
-        (Uint8)std::max(0, color.g - amount),
-        (Uint8)std::max(0, color.b - amount)
-    };
+    hover = isMouseOver(mouse);
 }

@@ -17,9 +17,8 @@ class Chess{
     public:
         SDL_Window* window;
         SDL_Renderer* renderer;
-        std::vector<SDL_Texture*> textures;
+        Assets assets;
         std::vector<Button> buttons;
-        TTF_Font* font;
         chess::Board board;
 
         bool quit;
@@ -32,7 +31,6 @@ class Chess{
         void doInput();
 
         void handleClick(Point mouse);
-        Button* getButton(std::string name);
         void runNewGame();
         void runPerft();
         void getFen();
@@ -42,9 +40,11 @@ class Chess{
         //  Everything that depends on the position, recomputed by onPositionChanged after every change
         chess::MoveList legalMoves;
         chess::GameStatus gameStatus = chess::GameStatus::Ongoing;
+        std::string statusText;  // "White to play", "Checkmate, Black wins"...
 
         chess::Square selectedSquare = chess::NoSquare;  // the piece the player clicked, NoSquare if none
         chess::Square pressedSquare = chess::NoSquare;  // where the mouse button went down
+        Point mouse = {0, 0};
 
         //  Set while the promotion picker is shown: the pawn move waiting for its piece
         chess::Move pendingPromotion;
@@ -58,7 +58,7 @@ class Chess{
         void playMove(chess::Move m);
         void undoMove();
         void redoMove();
-        std::vector<chess::Square> highlightedSquares() const;
+        BoardHighlights highlights() const;
 };
 
 

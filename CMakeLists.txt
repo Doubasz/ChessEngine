@@ -78,7 +78,6 @@ if(CHESS_BUILD_GUI)
     add_executable(chess
         src/gui/button.cpp
         src/gui/chess.cpp
-        src/gui/color.cpp
         src/gui/draw.cpp
         src/gui/main.cpp
     )

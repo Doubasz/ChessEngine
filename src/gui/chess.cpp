@@ -1,6 +1,7 @@
 
 #include "chess.h"
 #include "core/perft.h"
+#include "theme.h"
 #include <iostream>
 
 using namespace std;
@@ -24,32 +25,21 @@ Chess::Chess(){
     window = SDL_CreateWindow("Chess", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, windowFlags);
     renderer = SDL_CreateRenderer(window, -1, rendererFlags);
 
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    //  Blending so the highlight colors with an alpha below 255 are see-through
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    textures = loadAllTexture(renderer);
-
-    font = TTF_OpenFont(FONT_PATH, 64);
-    if (!font) {
-        std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
-        exit(-1);
+    if(!loadAssets(renderer, assets)){
+        std::cerr << "Failed to load assets: " << SDL_GetError() << " " << TTF_GetError() << std::endl;
+        exit(1);
     }
 
     quit = false;
 
-    int undoX = 538, undoY = 720, undoW = 50, undoH = 50;
-    int redoX = undoX + undoW + 20;
-
-    int stateX = 375, stateY = 20;
-    int stateW = 450;
-    int stateH = 60;
-
-    Button stateGame = Button{stateX, stateY, stateW, stateH};
-    stateGame.border = false;
-    stateGame.name = "stateGame";
-    stateGame.text = "";
-    stateGame.color = Color(BG_COLOR);
-    stateGame.colorHover = Color(BG_COLOR);
-    stateGame.colorText = Color(0xFFFFFFFF);
+    //  Undo and redo centered under the board
+    int undoW = 110, undoH = 44, undoGap = 20;
+    int undoX = STARTING_POSX + (TILESIZE * BOARD_SIZE) / 2 - undoW - undoGap / 2;
+    int undoY = STARTING_POSY + TILESIZE * BOARD_SIZE + 20;
+    int redoX = undoX + undoW + undoGap;
 
     Button undo = Button(undoX, undoY, undoW, undoH);
     undo.name = "Undo";
@@ -61,49 +51,31 @@ Chess::Chess(){
     redo.text = "Redo";
     redo.onClick = [this]() { redoMove(); };
 
-    int leftButtonX = 50, leftButtonY = 250, leftButtonW = 210, leftButtonH = 70;
+    //  One column left of the board, aligned with its top edge
+    int sideX = 50, sideW = 210, sideH = 50, sideGap = 16;
+    int sideY = STARTING_POSY;
 
-    Button newGame = Button{leftButtonX, leftButtonY, leftButtonW, leftButtonH};
-    newGame.text = "New Game";
-    newGame.name = "newGame";
-    newGame.onClick = [this](){ runNewGame(); };
-
-    int gap = 40;
-
-    Button getFen = Button{leftButtonX, leftButtonY + gap + leftButtonH, leftButtonW, leftButtonH};
-    getFen.text = "Get fen";
-    getFen.name = "getFen";
-    getFen.onClick = [this]() { this->getFen(); };
-
-    Button perft = Button{940, 90, 215, 50};
-    perft.text = "Run perft";
-    perft.name = "perft";
-    perft.onClick = [this]() { runPerft(); };
-
-    Button prntMoves = Button{leftButtonX, leftButtonY + 40 + leftButtonH * 2, leftButtonW, leftButtonH};
-    prntMoves.text = "Get List Moves";
-    prntMoves.name = "prntMoves";
-    prntMoves.onClick = [this]() { printMoves(); };
+    auto sideButton = [&](const std::string& name, const std::string& text, std::function<void()> onClick){
+        Button button = Button{sideX, sideY, sideW, sideH};
+        button.name = name;
+        button.text = text;
+        button.onClick = onClick;
+        sideY += sideH + sideGap;
+        return button;
+    };
 
     buttons.push_back(undo);
     buttons.push_back(redo);
-    buttons.push_back(stateGame);
-    buttons.push_back(newGame);
-    buttons.push_back(getFen);
-    buttons.push_back(perft);
-    buttons.push_back(prntMoves);
+    buttons.push_back(sideButton("newGame", "New Game", [this]() { runNewGame(); }));
+    buttons.push_back(sideButton("getFen", "Get fen", [this]() { getFen(); }));
+    buttons.push_back(sideButton("prntMoves", "Get List Moves", [this]() { printMoves(); }));
+    buttons.push_back(sideButton("perft", "Run perft", [this]() { runPerft(); }));
 
     onPositionChanged();
 }
 
 Chess::~Chess(){
-    for(SDL_Texture* texture : textures){
-        if(texture) SDL_DestroyTexture(texture);
-    }
-    if(font){
-        TTF_CloseFont(font);
-        font = nullptr;
-    }
+    freeAssets(assets);
     if (renderer) {
         SDL_DestroyRenderer(renderer);
         renderer = nullptr;
@@ -121,7 +93,7 @@ Chess::~Chess(){
 // ---- Game actions -------------------------------------------------------------
 
 //  Called after anything changes the position: recomputes the legal moves and the status,
-//  drops the selection and updates the banner
+//  drops the selection and updates the status line
 
 void Chess::onPositionChanged(){
     board.generateLegalMoves(legalMoves);
@@ -129,24 +101,20 @@ void Chess::onPositionChanged(){
     selectedSquare = chess::NoSquare;
     pendingPromotion = chess::Move();
 
-    Button* stateGame = getButton("stateGame");
-    if(stateGame == nullptr) return;
-
-    stateGame->active = true;
     bool whiteToMove = board.sideToMove() == chess::White;
 
     switch(gameStatus){
         case chess::GameStatus::Checkmate:
-            stateGame->text = whiteToMove ? "Checkmate, Black wins" : "Checkmate, White wins";
+            statusText = whiteToMove ? "Checkmate, Black wins" : "Checkmate, White wins";
             break;
         case chess::GameStatus::Stalemate:
-            stateGame->text = "Draw by stalemate";
+            statusText = "Draw by stalemate";
             break;
         case chess::GameStatus::FiftyMoveRule:
-            stateGame->text = "Draw by fifty move rule";
+            statusText = "Draw by fifty move rule";
             break;
         case chess::GameStatus::Ongoing:
-            stateGame->text = whiteToMove ? "White to play" : "Black to play";
+            statusText = whiteToMove ? "White to play" : "Black to play";
             break;
     }
 }
@@ -218,8 +186,7 @@ void Chess::onSquareClicked(chess::Square s){
 
             //  The four promotions share from and to, the picker decides which one is played
             if(m.promotion() != chess::NoPieceType){
-                pendingPromotion = m;
-                getButton("stateGame")->active = false;  // the picker is drawn over the banner
+                pendingPromotion = m;  // the picker is drawn in place of the status line
             }
             else playMove(m);
             return;
@@ -238,20 +205,29 @@ void Chess::onPromotionClicked(Point mouse){
     chess::Move pawnMove = pendingPromotion;
 
     pendingPromotion = chess::Move();
-    getButton("stateGame")->active = true;
 
     if(choice == chess::NoPieceType) return;
     playMove(chess::Move(pawnMove.from(), pawnMove.to(), pawnMove.kind(), choice));
 }
 
-std::vector<chess::Square> Chess::highlightedSquares() const{
-    std::vector<chess::Square> targets;
-    if(selectedSquare == chess::NoSquare) return targets;
+BoardHighlights Chess::highlights() const{
+    BoardHighlights h;
+    h.lastMove = board.lastMove();
+    h.selected = selectedSquare;
+    if(board.inCheck()) h.checkedKing = board.kingSquare(board.sideToMove());
+
+    if(selectedSquare == chess::NoSquare) return h;
 
     for(chess::Move m : legalMoves){
-        if(m.from() == selectedSquare) targets.push_back(m.to());
+        if(m.from() != selectedSquare) continue;
+
+        //  The four promotions share a target, it is only added once
+        if(m.promotion() != chess::NoPieceType && m.promotion() != chess::Queen) continue;
+
+        bool capture = board.pieceAt(m.to()) != chess::NoPiece || m.kind() == chess::MoveKind::EnPassant;
+        (capture ? h.captureTargets : h.quietTargets).push_back(m.to());
     }
-    return targets;
+    return h;
 }
 
 
@@ -260,12 +236,15 @@ std::vector<chess::Square> Chess::highlightedSquares() const{
 
 void Chess::draw(){
     drawBackground(renderer);
-    drawBoard(renderer, highlightedSquares());
-    drawPieces(renderer, board, textures);
-    drawButtons(renderer, buttons, font);
+    drawBoard(renderer, board, highlights(), assets);
+    drawButtons(renderer, buttons, assets.buttonFont);
 
     if(!pendingPromotion.isNull()){
-        drawPromotion(renderer, board.sideToMove(), textures);
+        drawPromotion(renderer, board.sideToMove(), mouse, assets);
+    }
+    else{
+        SDL_Rect statusArea = {STARTING_POSX, 20, TILESIZE * BOARD_SIZE, 60};
+        drawText(renderer, assets.titleFont, statusText, theme::Text, statusArea);
     }
     SDL_RenderPresent(renderer);
 }
@@ -289,7 +268,6 @@ void Chess::gameLoop(){
 }
 
 void Chess::doInput(){
-    Point mouse;
     SDL_GetMouseState(&mouse.x, &mouse.y);
 
     for(Button& b: buttons){
@@ -345,13 +323,4 @@ void Chess::handleClick(Point mouse){
             button.onClick();
         }
     }
-}
-
-Button* Chess::getButton(string name){
-    for(Button& button : buttons){
-        if(button.name == name){
-            return &button;
-        }
-    }
-    return nullptr;
 }
