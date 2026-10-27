@@ -14,3 +14,8 @@ __pycache__/
 # Editors
 .vscode/
 .idea/
+
+# In-source CMake configure leftovers (use presets instead)
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
