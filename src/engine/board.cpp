@@ -594,6 +594,10 @@ void Board::tryMakeMove(Move move){
     lastEnPassant = enPassantTarget;
     prevCastlingRights = castlingRights;
 
+    //  Read before the switch, it empties the start tile
+    bool pawnMoveOrCapture = start.piece == PAWN || target.piece != NONE;
+    bool blackMoved = start.color == BLACK;
+
     switch(move.type){
         case QUIET:{
             target.setPiece(start);
@@ -711,6 +715,10 @@ void Board::tryMakeMove(Move move){
     }
 
     updateCastlingRights();
+
+    //  Halfmove clock counts moves since the last pawn move or capture (50 move rule), full moves go up after black plays
+    nbHalfMoves = pawnMoveOrCapture ? 0 : nbHalfMoves + 1;
+    if(blackMoved) nbMoves++;
 
     GameState newState = GameState(castlingRights, turnToMove, enPassantActive, enPassantTarget, nbMoves, nbHalfMoves);
     currentGameState = newState;
