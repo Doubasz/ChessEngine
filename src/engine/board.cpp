@@ -504,13 +504,15 @@ void Board::generateMoves(Tile& tile){
                 bool kingInCheck = isKingInCheck(tile.color);
 
                 
-                if(tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y]) && tile.notBlockedBy(tiles[castleKingSide.x][castleKingSide.y - 1]) && hRook.piece == ROOK && hRook.neverMoved){
+                //  Every square between king and rook must be empty, an enemy piece blocks castling too
+                if(tiles[castleKingSide.x][castleKingSide.y].piece == NONE && tiles[castleKingSide.x][castleKingSide.y - 1].piece == NONE && hRook.piece == ROOK && hRook.neverMoved){
                     if(!kingInCheck){
                        targetSquares.push_back({KCASTLE, startingSquare, castleKingSide, tile.neverMoved});
                     }
                 }
 
-                if (tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y]) && tile.notBlockedBy(tiles[castleQueenSide.x][castleQueenSide.y + 1]) && aRook.piece == ROOK && aRook.neverMoved){
+                //  Queen side also needs the b-file square empty
+                if (tiles[castleQueenSide.x][castleQueenSide.y].piece == NONE && tiles[castleQueenSide.x][castleQueenSide.y + 1].piece == NONE && tiles[castleQueenSide.x][castleQueenSide.y - 1].piece == NONE && aRook.piece == ROOK && aRook.neverMoved){
                     if(!kingInCheck){
                         targetSquares.push_back({QCASTLE, startingSquare, castleQueenSide, tile.neverMoved});
                     }
