@@ -50,15 +50,6 @@ add_perft_test(position6 4 3065277
     "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P3/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10")
 
 
-# ---- Game status tests ----------------------------------------------------------
-#
-#  Checkmate, stalemate and fifty move rule detection on hand-picked positions.
-
-add_executable(game_status_test game_status_test.cpp)
-target_link_libraries(game_status_test PRIVATE engine chess_options)
-add_test(NAME game_status COMMAND game_status_test)
-
-
 # ---- Unit tests (GoogleTest) --------------------------------------------------
 #
 #  GoogleTest is downloaded at configure time, pinned to a release archive.

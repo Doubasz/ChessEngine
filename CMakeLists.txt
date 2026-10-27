@@ -38,23 +38,10 @@ if(CHESS_SANITIZERS)
 endif()
 
 
-# ---- Engine: rules, move generation, perft. No dependency on SDL -------------
-
-add_library(engine STATIC
-    src/engine/board.cpp
-    src/engine/GameState.cpp
-    src/engine/move.cpp
-    src/engine/perft.cpp
-    src/engine/position.cpp
-    src/engine/tile.cpp
-)
-target_include_directories(engine PUBLIC src/engine)
-target_link_libraries(engine PRIVATE chess_options)
-
-
-# ---- Core: the 0x88 board rewrite that will replace engine -------------------
+# ---- Core: board, rules, move generation, perft. No dependency on SDL --------
 #
-#  Headers are included as "core/board.h", so they never clash with the old engine headers.
+#  Headers are included with their directory ("core/board.h"), so the search can later sit
+#  next to it in src/search without name clashes.
 
 add_library(core STATIC
     src/core/board.cpp

@@ -230,6 +230,8 @@ TEST(Status, CheckmateStalemateAndFiftyMoves) {
         {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", GameStatus::Ongoing},
         {"rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3", GameStatus::Checkmate},
         {"R5k1/5ppp/8/8/8/8/8/6K1 b - - 0 1", GameStatus::Checkmate},
+        {"6k1/8/8/8/8/8/5PPP/r5K1 w - - 0 1", GameStatus::Checkmate},  // white mated too
+        {"4k3/8/8/8/8/8/8/4R1K1 b - - 0 1", GameStatus::Ongoing},  // in check but the king can step aside
         {"7k/5Q2/6K1/8/8/8/8/8 b - - 0 1", GameStatus::Stalemate},
         {"8/8/8/8/8/1k6/p7/K7 w - - 0 1", GameStatus::Stalemate},
         {"4k3/8/8/8/8/8/8/4K2R w - - 100 80", GameStatus::FiftyMoveRule},
