@@ -52,6 +52,19 @@ target_include_directories(engine PUBLIC src/engine)
 target_link_libraries(engine PRIVATE chess_options)
 
 
+# ---- Core: the 0x88 board rewrite that will replace engine -------------------
+#
+#  Headers are included as "core/board.h", so they never clash with the old engine headers.
+
+add_library(core STATIC
+    src/core/board.cpp
+    src/core/move.cpp
+    src/core/types.cpp
+)
+target_include_directories(core PUBLIC src)
+target_link_libraries(core PRIVATE chess_options)
+
+
 # ---- Perft command line tool --------------------------------------------------
 
 add_executable(perft src/perft/main.cpp)
