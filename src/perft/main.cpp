@@ -1,13 +1,14 @@
-#include "board.h"
-#include "perft.h"
+#include "core/board.h"
+#include "core/perft.h"
+
+#include <chrono>
 #include <iostream>
 #include <string>
 
 //  Usage: perft <depth> [fen]
 //  Prints the node count under each root move then the total, in the same format as Stockfish's "go perft"
-//  so the output can be diffed against it (see tools/perftDiff.py)
-
-static const std::string STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+//  so the output can be diffed against it (see tools/perftDiff.py). The timing goes to stderr so stdout
+//  stays in that format.
 
 int main(int argc, char* argv[]){
     if(argc < 2){
@@ -29,13 +30,20 @@ int main(int argc, char* argv[]){
         if(!fen.empty()) fen += ' ';
         fen += argv[i];
     }
-    if(fen.empty()) fen = STARTING_FEN;
+    if(fen.empty()) fen = std::string(chess::Board::StartFen);
 
-    Board board;
-    board.parseFENPosition(fen);
+    chess::Board board;
+    if(!board.setFen(fen)){
+        std::cerr << "Invalid FEN: " << fen << "\n";
+        return 1;
+    }
 
-    uint64_t nodes = dividePerft(board, depth, std::cout);
+    auto start = std::chrono::steady_clock::now();
+    uint64_t nodes = chess::perftDivide(board, depth, std::cout);
+    double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
     std::cout << "\nNodes searched: " << nodes << "\n";
+    std::cerr << "Time: " << seconds << " s (" << uint64_t(nodes / (seconds > 0 ? seconds : 1e-9) / 1000) << " thousand nodes per second)\n";
 
     return 0;
 }

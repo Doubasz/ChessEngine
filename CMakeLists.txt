@@ -60,6 +60,7 @@ add_library(core STATIC
     src/core/board.cpp
     src/core/move.cpp
     src/core/movegen.cpp
+    src/core/perft.cpp
     src/core/types.cpp
 )
 target_include_directories(core PUBLIC src)
@@ -69,7 +70,7 @@ target_link_libraries(core PRIVATE chess_options)
 # ---- Perft command line tool --------------------------------------------------
 
 add_executable(perft src/perft/main.cpp)
-target_link_libraries(perft PRIVATE engine chess_options)
+target_link_libraries(perft PRIVATE core chess_options)
 
 
 # ---- Tests --------------------------------------------------------------------
