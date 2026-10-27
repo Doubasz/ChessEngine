@@ -673,7 +673,7 @@ void Board::tryMakeMove(Move move){
         case B_PROMOTION_CAPTURE:
         case R_PROMOTION_CAPTURE:
         case Q_PROMOTION_CAPTURE:{
-            int pieceChoosed = (move.type == Q_PROMOTION) ? QUEEN : (move.type == R_PROMOTION) ? ROOK : (move.type == B_PROMOTION) ? BISHOP : (move.type == N_PROMOTION) ? KNIGHT : QUEEN;
+            int pieceChoosed = (move.type == Q_PROMOTION_CAPTURE) ? QUEEN : (move.type == R_PROMOTION_CAPTURE) ? ROOK : (move.type == B_PROMOTION_CAPTURE) ? BISHOP : (move.type == N_PROMOTION_CAPTURE) ? KNIGHT : QUEEN;
 
             posOfPieces.erase(std::remove(posOfPieces.begin(), posOfPieces.end(), target.currentPos), posOfPieces.end());
             std::replace(posOfPieces.begin(), posOfPieces.end(), start.currentPos, target.currentPos);
