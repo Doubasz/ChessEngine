@@ -1072,6 +1072,21 @@ bool Board::isKingInCheck(unsigned int colorPiece){
 }
 
 
+//  Status of the side to move: no legal move is mate if in check and stalemate otherwise,
+//  and 100 half moves without a pawn move or capture is a draw (50 move rule)
+
+GameStatus Board::getGameStatus(){
+    Move moves[256];
+
+    if(getAllMoves(moves, 256) == 0){
+        return isKingInCheck(turnToMove) ? CHECKMATE : STALEMATE;
+    }
+    if(nbHalfMoves >= 100) return DRAW_FIFTY_MOVES;
+
+    return ONGOING;
+}
+
+
 bool moveIsAnyPromCapt(Move move){
     return move.type == B_PROMOTION_CAPTURE || move.type == Q_PROMOTION_CAPTURE || move.type == N_PROMOTION_CAPTURE || move.type == R_PROMOTION_CAPTURE;
 }

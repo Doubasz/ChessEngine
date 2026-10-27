@@ -17,6 +17,13 @@ enum Castle{
     B_CASTLE_QS,
 };
 
+enum GameStatus{
+    ONGOING,
+    CHECKMATE,
+    STALEMATE,
+    DRAW_FIFTY_MOVES,
+};
+
 const int WHITE_KINGSIDE = 1; // 0001
 const int WHITE_QUEENSIDE = 2; // 0010
 const int BLACK_KINGSIDE = 4; // 0100
@@ -68,6 +75,7 @@ class Board{
         void redoMove();
         void displayBoard();
         int getAllMoves(Move move[], int size);
+        GameStatus getGameStatus();
 
         std::vector<Move> filterLegalMoves(Tile tile);
         bool isKingInCheck(unsigned int color);
