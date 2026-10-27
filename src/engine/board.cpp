@@ -25,8 +25,6 @@ Board::Board(){
     
     parseFENPosition(startingPosition);
 
-    castlingRights = 15;
-
 
 }
 
@@ -243,7 +241,11 @@ void Board::parseFENPosition(string position){
     tiles[0][7].neverMoved = (fenPosition[2].find('k') != string::npos) ? true : false;
     tiles[0][0].neverMoved = (fenPosition[2].find('q') != string::npos) ? true : false;
 
-    updateCastlingRights();
+    castlingRights = 0;
+    if(fenPosition[2].find('K') != string::npos) castlingRights |= WHITE_KINGSIDE;
+    if(fenPosition[2].find('Q') != string::npos) castlingRights |= WHITE_QUEENSIDE;
+    if(fenPosition[2].find('k') != string::npos) castlingRights |= BLACK_KINGSIDE;
+    if(fenPosition[2].find('q') != string::npos) castlingRights |= BLACK_QUEENSIDE;
 
     //  En passant
     enPassantActive = (fenPosition[3].find('-') != string::npos) ? false : true;
@@ -259,6 +261,8 @@ void Board::parseFENPosition(string position){
     nbHalfMoves = std::stoi(fenPosition[4]);
     nbMoves = std::stoi(fenPosition[5]);
 
+    //  The state undoMove restores after the first move, without it undo reads garbage
+    currentGameState = GameState(castlingRights, turnToMove, enPassantActive, enPassantTarget, nbMoves, nbHalfMoves);
 }
 
 //  basically e4 -> 4, 4 
