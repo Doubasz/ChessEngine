@@ -65,6 +65,7 @@ Chess::Chess(){
     quit = false;
 
     board = Board();
+    gameStatus = ONGOING;
 
     int undoX = 538, undoY = 720, undoW = 50, undoH = 50;
     int redoX = undoX + undoW + 20;
@@ -87,7 +88,7 @@ Chess::Chess(){
     undo.text = "Undo";
 
     Board* b = &board;
-    undo.onClick = [b]() { b->undoLastMove(); };
+    undo.onClick = [this]() { board.undoLastMove(); updateGameStatus(); };
 
     Button redo = Button(redoX, undoY, undoW, undoH);
     //redo.colorHover = Color(0xad953b);
@@ -131,6 +132,7 @@ Chess::Chess(){
     buttons.push_back(perft);
     buttons.push_back(prntMoves);
 
+    updateGameStatus();
     board.displayBoard();
 
 }
@@ -161,6 +163,31 @@ void playBotRandom(){
 
 void Chess::runNewGame(){
     board = Board();
+    updateGameStatus();
+}
+
+//  Recomputes the status of the side to move and shows it in the stateGame banner
+
+void Chess::updateGameStatus(){
+    gameStatus = board.getGameStatus();
+
+    Button* stateGame = getButton("stateGame");
+    if(stateGame == nullptr) return;
+
+    switch(gameStatus){
+        case CHECKMATE:
+            stateGame->text = (board.turnToMove == WHITE) ? "Checkmate, Black wins" : "Checkmate, White wins";
+            break;
+        case STALEMATE:
+            stateGame->text = "Draw by stalemate";
+            break;
+        case DRAW_FIFTY_MOVES:
+            stateGame->text = "Draw by fifty move rule";
+            break;
+        case ONGOING:
+            stateGame->text = (board.turnToMove == WHITE) ? "White to play" : "Black to play";
+            break;
+    }
 }
 
 void undoLastMove(Board b){
@@ -346,6 +373,9 @@ void Chess::doInput(){
                         promotionPawn = nullptr;
 
                         stateGame->active = true;
+
+                        //  The status was computed with a queen, an underpromotion can change it
+                        updateGameStatus();
                     }
                     
                     Position temp1 = getPiecePosInArray(releasedAt);
@@ -358,7 +388,11 @@ void Chess::doInput(){
                         cout << "Clicked piece is " << clickPiece->currentPos.x << ", " << clickPiece->currentPos.y << endl;
 
                         
-                            if(selectedClickedPiece == nullptr){
+                            //  Once the game is over no piece can be selected, only undo or new game
+                            if(gameStatus != ONGOING){
+                                selectedClickedPiece = nullptr;
+                            }
+                            else if(selectedClickedPiece == nullptr){
 
                                 if(clickPiece->piece != NONE){
                                                                             
@@ -381,7 +415,7 @@ void Chess::doInput(){
                                     Move temp = selectedClickedPiece->getInLegalMoves(clickPiece->currentPos);
 
                                     board.makeMove(temp);
-                                    stateGame->text = (board.turnToMove == WHITE) ? "White to play" : "Black to play";
+                                    updateGameStatus();
 
                                     
                                     
@@ -460,6 +494,7 @@ void Chess::doInput(){
                     cout << "left pressed" << endl;
                     
                     board.undoLastMove();
+                    updateGameStatus();
                     board.displayBoard();
                 }
                 else if (event.key.keysym.sym == SDLK_RIGHT){
