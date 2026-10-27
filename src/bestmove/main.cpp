@@ -46,7 +46,8 @@ int main(int argc, char* argv[]){
 
     chess::Searcher searcher;
     chess::SearchResult result = searcher.search(board, limits, [](const chess::SearchResult& r){
-        uint64_t nps = r.elapsed.count() > 0 ? r.nodes * 1000 / r.elapsed.count() : 0;
+        uint64_t ms = uint64_t(r.elapsed.count());
+        uint64_t nps = ms > 0 ? r.nodes * 1000 / ms : 0;
         std::cout << "depth " << r.depth
                   << "  score " << formatScore(r.score)
                   << "  nodes " << r.nodes

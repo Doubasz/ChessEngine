@@ -54,6 +54,10 @@ public:
     //  Asks a running search to stop as soon as possible. Safe to call from another thread.
     void stop() { stopRequested_ = true; }
 
+    //  Nodes searched so far by the running search, updated every few thousand nodes.
+    //  Safe to call from another thread, to show progress while the search runs.
+    uint64_t nodesSearched() const { return nodesShared_.load(std::memory_order_relaxed); }
+
 private:
     int searchRoot(int depth, Move& bestMove);
     int negamax(int depth, int alpha, int beta, int ply);
@@ -69,6 +73,7 @@ private:
     int completedDepth_ = 0;
 
     std::atomic<bool> stopRequested_{false};
+    std::atomic<uint64_t> nodesShared_{0};
     bool stopped_ = false;  // set once the search must unwind, by stop() or by the time limit
     std::chrono::steady_clock::time_point start_;
     std::chrono::milliseconds timeLimit_{0};

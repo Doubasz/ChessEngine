@@ -8,6 +8,7 @@ namespace chess {
 SearchResult Searcher::search(const Board& board, const SearchLimits& limits, const IterationCallback& onIteration) {
     board_ = board;
     nodes_ = 0;
+    nodesShared_ = 0;
     completedDepth_ = 0;
     stopRequested_ = false;
     stopped_ = false;
@@ -43,6 +44,7 @@ SearchResult Searcher::search(const Board& board, const SearchLimits& limits, co
         if (isMateScore(score)) break;
     }
 
+    nodesShared_ = nodes_;
     result.nodes = nodes_;
     result.elapsed = elapsed();
     return result;
@@ -214,15 +216,18 @@ std::chrono::milliseconds Searcher::elapsed() const {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_);
 }
 
-//  Checked at every node. The clock is only read every 2048 nodes, reading it is not free.
-//  Never stops during depth 1, so there is always a complete iteration to return.
+//  Checked at every node. Every 2048 nodes it also publishes the node count and reads the clock,
+//  reading it is not free. Never stops during depth 1, so there is always a complete iteration to return.
 
 bool Searcher::shouldStop() {
     if (stopped_) return true;
+
+    bool checkpoint = (nodes_ & 2047) == 0;
+    if (checkpoint) nodesShared_.store(nodes_, std::memory_order_relaxed);
     if (completedDepth_ == 0) return false;
 
     if (stopRequested_.load(std::memory_order_relaxed)) stopped_ = true;
-    else if (timeLimit_.count() > 0 && (nodes_ & 2047) == 0 && elapsed() >= timeLimit_) stopped_ = true;
+    else if (checkpoint && timeLimit_.count() > 0 && elapsed() >= timeLimit_) stopped_ = true;
 
     return stopped_;
 }
