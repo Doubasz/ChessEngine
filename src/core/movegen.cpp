@@ -208,6 +208,8 @@ GameStatus Board::status() {
 
     if (moves.empty()) return inCheck() ? GameStatus::Checkmate : GameStatus::Stalemate;
     if (halfmoveClock_ >= 100) return GameStatus::FiftyMoveRule;
+    if (repetitions() >= 2) return GameStatus::ThreefoldRepetition;
+    if (hasInsufficientMaterial()) return GameStatus::InsufficientMaterial;
     return GameStatus::Ongoing;
 }
 

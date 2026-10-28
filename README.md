@@ -16,7 +16,9 @@ positions, and an alpha-beta search that shows what it is thinking while it play
 ## Features
 
 **Rules and move generation** (`src/core`)
-- Complete rules: castling, en passant, promotions, check, checkmate, stalemate, fifty-move rule
+- Complete rules: castling, en passant, promotions, check, checkmate, stalemate, and draws by the
+  fifty-move rule, threefold repetition and insufficient material
+- Zobrist hashing: each position has a 64-bit hash, updated with a few XORs per move
 - 0x88 board, legal move generation with make/unmake, FEN import and export, UCI move notation
 - About 12 million positions per second in perft (depth 6 from the start position in under 10 seconds)
 
@@ -26,6 +28,7 @@ positions, and an alpha-beta search that shows what it is thinking while it play
 - Move ordering by MVV-LVA (most valuable victim, least valuable attacker) and killer moves
 - Evaluation by material and piece-square tables, with a separate king table for the endgame
 - Mate scores counted in moves, so it plays the fastest mate and delays its own
+- Repeated positions scored as draws, so it avoids repetitions when winning and seeks them when losing
 
 **Desktop app** (`src/gui`)
 - Play against the bot (easy, medium, hard) with either color, or against a friend on the same computer
@@ -209,8 +212,9 @@ that depth is dropped and the best move of the last complete one is played.
 
 ## Roadmap
 
-- [ ] Draw by threefold repetition and insufficient material
-- [ ] Zobrist hashing and a transposition table
+- [x] Draw by threefold repetition and insufficient material
+- [x] Zobrist hashing
+- [ ] Transposition table
 - [ ] UCI protocol, to play in GUIs like Arena or Cute Chess and against other engines
 - [ ] Move list in standard algebraic notation (SAN) in the app
 - [ ] Better evaluation: pawn structure, mobility, king safety

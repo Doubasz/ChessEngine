@@ -105,6 +105,12 @@ void GameScreen::updateStatusText(){
         case chess::GameStatus::FiftyMoveRule:
             statusText = "Draw by fifty move rule";
             break;
+        case chess::GameStatus::ThreefoldRepetition:
+            statusText = "Draw by repetition";
+            break;
+        case chess::GameStatus::InsufficientMaterial:
+            statusText = "Draw, not enough material to mate";
+            break;
         case chess::GameStatus::Ongoing:
             if(setup.vsBot) statusText = isBotTurn() ? "The bot is thinking..." : "Your turn";
             else statusText = whiteToMove ? "White to play" : "Black to play";

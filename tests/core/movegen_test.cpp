@@ -242,3 +242,25 @@ TEST(Status, CheckmateStalemateAndFiftyMoves) {
         EXPECT_EQ(board.status(), c.expected) << c.fen;
     }
 }
+
+TEST(Status, InsufficientMaterial) {
+    struct Case {
+        const char* fen;
+        GameStatus expected;
+    };
+    const Case cases[] = {
+        {"8/8/8/4k3/8/8/8/4K3 w - - 0 1", GameStatus::InsufficientMaterial},  // kings only
+        {"8/8/8/4k3/8/8/8/4KN2 w - - 0 1", GameStatus::InsufficientMaterial},  // one knight
+        {"8/8/8/4k3/8/8/8/2B1K3 w - - 0 1", GameStatus::InsufficientMaterial},  // one bishop
+        {"5b2/8/8/4k3/8/8/8/2B1K3 w - - 0 1", GameStatus::InsufficientMaterial},  // bishops on dark squares
+        {"2b5/8/8/4k3/8/8/8/2B1K3 w - - 0 1", GameStatus::Ongoing},  // bishops on both colors
+        {"8/8/8/4k3/8/8/8/1N2KN2 w - - 0 1", GameStatus::Ongoing},  // two knights can mate with help
+        {"8/8/8/4k3/8/8/8/2B1KN2 w - - 0 1", GameStatus::Ongoing},
+        {"8/8/8/4k3/8/8/4P3/4K3 w - - 0 1", GameStatus::Ongoing},
+        {"8/8/8/4k3/8/8/8/4K2R w - - 0 1", GameStatus::Ongoing},
+    };
+    for (const Case& c : cases) {
+        Board board = boardFrom(c.fen);
+        EXPECT_EQ(board.status(), c.expected) << c.fen;
+    }
+}
