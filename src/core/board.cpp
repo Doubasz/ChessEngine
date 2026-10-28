@@ -1,6 +1,9 @@
 #include "core/board.h"
+#include "core/zobrist.h"
 
+#include <algorithm>
 #include <charconv>
+#include <initializer_list>
 #include <sstream>
 
 namespace chess {
@@ -142,6 +145,7 @@ bool Board::setFen(std::string_view fen) {
     if (!parseCounter(halfmove, parsed.halfmoveClock_)) return false;
     if (!parseCounter(fullmove, parsed.fullmoveNumber_) || parsed.fullmoveNumber_ == 0) return false;
 
+    parsed.hash_ = parsed.computeHash();
     *this = parsed;
     return true;
 }
@@ -186,20 +190,31 @@ void Board::makeMove(Move m) {
     Color us = sideToMove_;
     Square from = m.from(), to = m.to();
     Piece piece = squares_[from];
+    Piece placed = m.promotion() != NoPieceType ? makePiece(us, m.promotion()) : piece;
 
     Square captureSquare = m.kind() == MoveKind::EnPassant ? enPassantVictim(to, us) : to;
     Piece captured = squares_[captureSquare];
 
-    history_.push_back({m, captured, castlingRights_, enPassant_, halfmoveClock_});
+    history_.push_back({m, captured, castlingRights_, enPassant_, halfmoveClock_, hash_});
+
+    //  Every change to the position XORs its key into the hash. The old castling rights and
+    //  en passant file are taken out here, the new ones are put in at the end.
+    const zobrist::Keys& keys = zobrist::keys;
+    hash_ ^= keys.castling[castlingRights_] ^ enPassantKey();
 
     squares_[captureSquare] = NoPiece;
     squares_[from] = NoPiece;
-    squares_[to] = m.promotion() != NoPieceType ? makePiece(us, m.promotion()) : piece;
+    squares_[to] = placed;
+
+    if (captured != NoPiece) hash_ ^= keys.pieceSquare[captured][captureSquare];
+    hash_ ^= keys.pieceSquare[piece][from] ^ keys.pieceSquare[placed][to];
 
     if (m.kind() == MoveKind::Castling) {
         RookMove rook = castlingRook(to);
-        squares_[rook.to] = squares_[rook.from];
+        Piece rookPiece = squares_[rook.from];
+        squares_[rook.to] = rookPiece;
         squares_[rook.from] = NoPiece;
+        hash_ ^= keys.pieceSquare[rookPiece][rook.from] ^ keys.pieceSquare[rookPiece][rook.to];
     }
 
     if (typeOf(piece) == King) kings_[us] = to;
@@ -213,6 +228,7 @@ void Board::makeMove(Move m) {
     if (us == Black) fullmoveNumber_++;
 
     sideToMove_ = ~us;
+    hash_ ^= keys.blackToMove ^ keys.castling[castlingRights_] ^ enPassantKey();
 }
 
 
@@ -231,6 +247,7 @@ void Board::unmakeMove() {
     halfmoveClock_ = undo.halfmoveClock;
     enPassant_ = undo.enPassant;
     castlingRights_ = undo.castlingRights;
+    hash_ = undo.hash;
 
     //  A promoted piece goes back to being a pawn
     Piece piece = m.promotion() != NoPieceType ? makePiece(us, Pawn) : squares_[to];
@@ -248,6 +265,81 @@ void Board::unmakeMove() {
 
     Square captureSquare = m.kind() == MoveKind::EnPassant ? enPassantVictim(to, us) : to;
     squares_[captureSquare] = undo.captured;
+}
+
+
+// ---- Hashing ------------------------------------------------------------------
+
+uint64_t Board::computeHash() const {
+    const zobrist::Keys& keys = zobrist::keys;
+
+    uint64_t hash = keys.castling[castlingRights_] ^ enPassantKey();
+    if (sideToMove_ == Black) hash ^= keys.blackToMove;
+
+    //  The padding squares of the 0x88 board are always empty
+    for (int s = 0; s < BoardArraySize; s++) {
+        if (squares_[s] != NoPiece) hash ^= keys.pieceSquare[squares_[s]][s];
+    }
+    return hash;
+}
+
+//  The en passant file counts in the hash only when a pawn of the side to move stands next to
+//  the pawn that just moved, ready to take it (a pinned pawn still counts, as in most engines).
+//  Otherwise every double push would make the position look different from the same position
+//  reached by other moves, and repetitions would be missed.
+
+uint64_t Board::enPassantKey() const {
+    if (enPassant_ == NoSquare) return 0;
+
+    Square pushedPawn = sideToMove_ == White ? enPassant_ - 16 : enPassant_ + 16;
+    Piece ourPawn = makePiece(sideToMove_, Pawn);
+    for (Square s : {pushedPawn - 1, pushedPawn + 1}) {
+        if (isOnBoard(s) && squares_[s] == ourPawn) return zobrist::keys.enPassantFile[fileOf(enPassant_)];
+    }
+    return 0;
+}
+
+
+// ---- Draws --------------------------------------------------------------------
+
+//  Only the positions since the last capture or pawn move can repeat, those moves cannot be
+//  undone. And only every other one has the same side to move.
+
+int Board::repetitions() const {
+    int played = int(history_.size());
+    int lookback = std::min(halfmoveClock_, played);
+
+    int count = 0;
+    for (int i = 2; i <= lookback; i += 2) {
+        if (history_[played - i].hash == hash_) count++;
+    }
+    return count;
+}
+
+bool Board::hasInsufficientMaterial() const {
+    int knights = 0, bishops = 0;
+    bool bishopOnLight = false, bishopOnDark = false;
+
+    for (int i = 0; i < BoardArraySize; i++) {
+        Square s = Square(i);
+        switch (typeOf(squares_[s])) {
+            case NoPieceType:
+            case King:
+                break;
+            case Knight:
+                knights++;
+                break;
+            case Bishop:
+                bishops++;
+                ((fileOf(s) + rankOf(s)) % 2 == 0 ? bishopOnDark : bishopOnLight) = true;  // a1 is dark
+                break;
+            default:
+                return false;  // a pawn, rook or queen can always mate
+        }
+    }
+
+    if (knights + bishops <= 1) return true;
+    return knights == 0 && !(bishopOnLight && bishopOnDark);
 }
 
 }  // namespace chess

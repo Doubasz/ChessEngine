@@ -4,6 +4,7 @@
 #include "core/types.h"
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -15,6 +16,8 @@ enum class GameStatus {
     Checkmate,  // the side to move is mated
     Stalemate,
     FiftyMoveRule,
+    ThreefoldRepetition,
+    InsufficientMaterial,  // neither side has enough pieces left to mate
 };
 
 //  A chess position: where the pieces are, whose turn it is, castling rights,
@@ -41,6 +44,19 @@ public:
     int halfmoveClock() const { return halfmoveClock_; }
     int fullmoveNumber() const { return fullmoveNumber_; }
     Square kingSquare(Color c) const { return kings_[c]; }
+
+    //  Zobrist hash of the position (see zobrist.h), kept up to date by makeMove. Two positions
+    //  with the same pieces, side to move, castling rights and possible en passant capture have
+    //  the same hash, whatever moves led to them. The move counters are not part of it.
+    uint64_t hash() const { return hash_; }
+
+    //  How many times the current position occurred before, among the positions played since
+    //  setFen. 2 means this is its third occurrence: a draw by threefold repetition.
+    int repetitions() const;
+
+    //  No sequence of moves can lead to a mate: king against king, king and one minor piece
+    //  against king, or kings and bishops all on squares of the same color
+    bool hasInsufficientMaterial() const;
 
     bool isSquareAttacked(Square s, Color by) const;
     bool inCheck() const { return isSquareAttacked(kings_[sideToMove_], ~sideToMove_); }
@@ -70,6 +86,7 @@ private:
         int castlingRights;
         Square enPassant;
         int halfmoveClock;
+        uint64_t hash;  // of the position before the move, so history_ is also the list of positions played
     };
 
     struct EmptyTag {};
@@ -79,12 +96,16 @@ private:
     void generatePawnMoves(MoveList& moves, Square from);
     void generateCastling(MoveList& moves);
 
+    uint64_t computeHash() const;  // from scratch, makeMove updates hash_ instead
+    uint64_t enPassantKey() const;
+
     std::array<Piece, BoardArraySize> squares_{};
     Color sideToMove_ = White;
     int castlingRights_ = NoCastling;
     Square enPassant_ = NoSquare;
     int halfmoveClock_ = 0;
     int fullmoveNumber_ = 1;
+    uint64_t hash_ = 0;
 
     //  Kept up to date by makeMove so check detection does not have to search for the king
     std::array<Square, 2> kings_{NoSquare, NoSquare};

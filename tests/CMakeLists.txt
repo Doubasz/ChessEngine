@@ -68,6 +68,7 @@ include(GoogleTest)
 add_executable(core_tests
     core/fen_test.cpp
     core/movegen_test.cpp
+    core/zobrist_test.cpp
 )
 target_link_libraries(core_tests PRIVATE core chess_options GTest::gtest_main)
 gtest_discover_tests(core_tests TEST_PREFIX "core.")
