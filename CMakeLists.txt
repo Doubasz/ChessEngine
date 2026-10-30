@@ -65,6 +65,7 @@ target_link_libraries(perft PRIVATE core chess_options)
 add_library(search STATIC
     src/search/eval.cpp
     src/search/search.cpp
+    src/search/tt.cpp
 )
 target_include_directories(search PUBLIC src)
 target_link_libraries(search PUBLIC core PRIVATE chess_options)

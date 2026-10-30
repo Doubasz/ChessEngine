@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/board.h"
+#include "search/tt.h"
 
 #include <array>
 #include <atomic>
@@ -43,7 +44,8 @@ struct SearchResult {
 //  middle of an iteration the result of the previous, complete one is returned. Depth 1 always
 //  completes, so there is a move to play whenever one exists.
 //
-//  Not done yet: repetition draws (needs position hashing), transposition table.
+//  Positions already searched are kept in a transposition table, which lasts from one search to
+//  the next: a Searcher that plays a whole game starts each move with what it found before.
 class Searcher {
 public:
     //  onIteration, if given, is called after every completed depth with the result so far
@@ -80,6 +82,8 @@ private:
 
     //  Two quiet moves per ply that caused a beta cutoff, tried right after the captures
     std::array<std::array<Move, 2>, MaxPly> killers_{};
+
+    TranspositionTable table_;
 };
 
 }  // namespace chess

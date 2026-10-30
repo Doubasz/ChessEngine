@@ -132,6 +132,23 @@ TEST(Search, WinningSideAvoidsRepeatingThePosition) {
 }
 
 
+// ---- Transposition table ---------------------------------------------------------
+
+TEST(Search, SecondSearchReusesTheFirst) {
+    const char* fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    Searcher searcher;
+    SearchLimits limits;
+    limits.depth = 4;
+
+    SearchResult first = searcher.search(boardFrom(fen), limits);
+    SearchResult second = searcher.search(boardFrom(fen), limits);
+
+    EXPECT_EQ(second.bestMove, first.bestMove);
+    EXPECT_EQ(second.score, first.score);
+    EXPECT_LT(second.nodes * 10, first.nodes);  // most of the tree comes from the table
+}
+
+
 // ---- Limits ----------------------------------------------------------------------
 
 TEST(Search, ReportsEveryDepthUpToTheLimit) {

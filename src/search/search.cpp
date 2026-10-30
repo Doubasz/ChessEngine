@@ -26,6 +26,13 @@ SearchResult Searcher::search(const Board& board, const SearchLimits& limits, co
     }
     result.bestMove = moves[0];
 
+    //  The previous search may have reached this position: start with its best move
+    if (const TableEntry* entry = table_.probe(board_.hash())) {
+        for (Move m : moves) {
+            if (m == entry->move) result.bestMove = m;
+        }
+    }
+
     int maxDepth = std::clamp(limits.depth, 1, MaxPly - 1);
     for (int depth = 1; depth <= maxDepth; depth++) {
         Move best = result.bestMove;  // searched first, it was the best one at the previous depth
@@ -98,13 +105,31 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply) {
     if (depth <= 0) return quiescence(alpha, beta, ply);
     nodes_++;
 
+    //  Already searched at least this deep: the stored score answers without searching again,
+    //  if it is exact or a bound that is enough for this alpha and beta. Searched less deep, its
+    //  best move is still the most likely one here, it is tried first.
+    uint64_t key = board_.hash();
+    Move tableMove;
+    if (const TableEntry* entry = table_.probe(key)) {
+        tableMove = entry->move;
+        if (entry->depth >= depth) {
+            int score = scoreFromTable(entry->score, ply);
+            if (entry->bound == Bound::Exact) return std::clamp(score, alpha, beta);
+            if (entry->bound == Bound::Lower && score >= beta) return beta;
+            if (entry->bound == Bound::Upper && score <= alpha) return alpha;
+        }
+    }
+
     MoveList moves;
     board_.generateLegalMoves(moves);
     if (moves.empty()) return inCheck ? -MateScore + ply : 0;
 
+    //  The table move is only searched first if it is one of the legal moves: a position sharing
+    //  the hash of another one cannot make the search play an illegal move
     std::array<Move, MoveList::Capacity> ordered;
-    orderMoves(moves, ordered, ply, Move());
+    orderMoves(moves, ordered, ply, tableMove);
 
+    Move best;  // stays null if no move reaches alpha
     for (size_t i = 0; i < moves.size(); i++) {
         Move m = ordered[i];
         bool quiet = !isCapture(m) && m.promotion() == NoPieceType;
@@ -120,10 +145,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply) {
                 killers_[ply][1] = killers_[ply][0];
                 killers_[ply][0] = m;
             }
+            table_.store(key, depth, scoreToTable(beta, ply), Bound::Lower, m);
             return beta;
         }
-        alpha = std::max(alpha, score);
+        if (score > alpha) {
+            alpha = score;
+            best = m;
+        }
     }
+
+    table_.store(key, depth, scoreToTable(alpha, ply), best.isNull() ? Bound::Upper : Bound::Exact, best);
     return alpha;
 }
 
