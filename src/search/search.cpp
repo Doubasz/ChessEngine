@@ -87,6 +87,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply) {
     if (ply >= MaxPly - 1) return evaluate(board_);
     if (board_.halfmoveClock() >= 100) return 0;
 
+    //  A position seen before is scored as a draw on its first repetition, not its third: if
+    //  coming back to it was the best choice once, it will be again, until the third
+    if (board_.repetitions() > 0) return 0;
+
     //  Check extension: never stop the search right after a check, the reply may lose material or be mate
     bool inCheck = board_.inCheck();
     if (inCheck) depth++;
