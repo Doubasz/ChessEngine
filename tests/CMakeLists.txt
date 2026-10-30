@@ -76,6 +76,7 @@ gtest_discover_tests(core_tests TEST_PREFIX "core.")
 add_executable(search_tests
     search/eval_test.cpp
     search/search_test.cpp
+    search/tt_test.cpp
 )
 target_link_libraries(search_tests PRIVATE search chess_options GTest::gtest_main)
 gtest_discover_tests(search_tests TEST_PREFIX "search.")

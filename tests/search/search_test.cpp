@@ -96,6 +96,59 @@ TEST(Search, StalematedPositionScoresZero) {
 }
 
 
+// ---- Repetitions -----------------------------------------------------------------
+
+namespace {
+
+//  King and queen against king, after the queen and the black king went there and back once
+Board queenShuffled(int plies) {
+    Board board = boardFrom("4k3/8/8/8/8/8/8/Q3K3 w - - 0 1");
+    const char* moves[] = {"a1a2", "e8d8", "a2a1", "d8e8"};
+    for (int i = 0; i < plies; i++) board.makeMove(board.moveFromUci(moves[i]));
+    return board;
+}
+
+}  // namespace
+
+TEST(Search, LosingSideRepeatsThePosition) {
+    //  Every black move loses, except going back to e8: the starting position again, a draw
+    Searcher searcher;
+    SearchLimits limits;
+    limits.depth = 3;
+    SearchResult result = searcher.search(queenShuffled(3), limits);
+
+    EXPECT_EQ(result.bestMove.toUci(), "d8e8");
+    EXPECT_EQ(result.score, 0);
+}
+
+TEST(Search, WinningSideAvoidsRepeatingThePosition) {
+    Searcher searcher;
+    SearchLimits limits;
+    limits.depth = 3;
+    SearchResult result = searcher.search(queenShuffled(4), limits);
+
+    EXPECT_NE(result.bestMove.toUci(), "a1a2");  // the position after it was already played
+    EXPECT_GT(result.score, 0);
+}
+
+
+// ---- Transposition table ---------------------------------------------------------
+
+TEST(Search, SecondSearchReusesTheFirst) {
+    const char* fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    Searcher searcher;
+    SearchLimits limits;
+    limits.depth = 4;
+
+    SearchResult first = searcher.search(boardFrom(fen), limits);
+    SearchResult second = searcher.search(boardFrom(fen), limits);
+
+    EXPECT_EQ(second.bestMove, first.bestMove);
+    EXPECT_EQ(second.score, first.score);
+    EXPECT_LT(second.nodes * 10, first.nodes);  // most of the tree comes from the table
+}
+
+
 // ---- Limits ----------------------------------------------------------------------
 
 TEST(Search, ReportsEveryDepthUpToTheLimit) {

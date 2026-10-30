@@ -25,7 +25,10 @@ positions, and an alpha-beta search that shows what it is thinking while it play
 **Search** (`src/search`)
 - Negamax alpha-beta with iterative deepening, under a depth limit, a time limit or both
 - Quiescence search on captures and a check extension, so exchanges and checks are not cut off halfway
-- Move ordering by MVV-LVA (most valuable victim, least valuable attacker) and killer moves
+- Transposition table: positions already searched, reached again by another move order or at the
+  next move, are answered from a 16 MB table instead of searched again
+- Move ordering: the best move from the table first, then MVV-LVA (most valuable victim, least
+  valuable attacker) and killer moves
 - Evaluation by material and piece-square tables, with a separate king table for the endgame
 - Mate scores counted in moves, so it plays the fastest mate and delays its own
 - Repeated positions scored as draws, so it avoids repetitions when winning and seeks them when losing
@@ -214,7 +217,7 @@ that depth is dropped and the best move of the last complete one is played.
 
 - [x] Draw by threefold repetition and insufficient material
 - [x] Zobrist hashing
-- [ ] Transposition table
+- [x] Transposition table
 - [ ] UCI protocol, to play in GUIs like Arena or Cute Chess and against other engines
 - [ ] Move list in standard algebraic notation (SAN) in the app
 - [ ] Better evaluation: pawn structure, mobility, king safety
