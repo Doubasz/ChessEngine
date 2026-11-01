@@ -60,6 +60,10 @@ public:
     //  Safe to call from another thread, to show progress while the search runs.
     uint64_t nodesSearched() const { return nodesShared_.load(std::memory_order_relaxed); }
 
+    //  The table is kept from one search to the next. Not while a search is running.
+    void clearTable() { table_.clear(); }
+    void setTableSize(size_t sizeMb) { table_ = TranspositionTable(sizeMb); }
+
 private:
     int searchRoot(int depth, Move& bestMove);
     int negamax(int depth, int alpha, int beta, int ply);

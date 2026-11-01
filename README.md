@@ -5,7 +5,7 @@
 ![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C.svg)
 
 A chess engine written from scratch in C++17, with an SDL2 desktop app to play against it or
-against a friend. The engine has its own move generator, verified against the standard perft
+against a friend, and a UCI interface to use it in any chess GUI. The engine has its own move generator, verified against the standard perft
 positions, and an alpha-beta search that shows what it is thinking while it plays.
 
 | Playing against the bot | Hints and check |
@@ -32,6 +32,12 @@ positions, and an alpha-beta search that shows what it is thinking while it play
 - Evaluation by material and piece-square tables, with a separate king table for the endgame
 - Mate scores counted in moves, so it plays the fastest mate and delays its own
 - Repeated positions scored as draws, so it avoids repetitions when winning and seeks them when losing
+
+**UCI engine** (`src/uci`)
+- Speaks the UCI protocol, so it plays in chess GUIs like Cute Chess, Arena or BanksiaGUI,
+  against people or other engines
+- Time management from the game clock (`wtime`/`btime`, increments, `movestogo`), fixed time,
+  fixed depth or infinite analysis, and a configurable table size (`Hash` option)
 
 **Desktop app** (`src/gui`)
 - Play against the bot (easy, medium, hard) with either color, or against a friend on the same computer
@@ -119,6 +125,43 @@ The app loads its images and font from the `sprites/` folder, which the build co
 | `Esc` | Back to the menu |
 
 
+## Playing in a chess GUI (UCI)
+
+`chess-uci` is the engine for chess GUIs. In the GUI, add it as a new UCI engine:
+
+- **Cute Chess**: Tools → Settings → Engines → `+`, command: the path to `chess-uci`
+- **Arena**: Engines → Install New Engine, pick `chess-uci`, type UCI
+
+On Windows with MSYS2, the GUI must find the MinGW DLLs: either add `C:\msys64\mingw64\bin` to your
+`PATH`, or copy `libstdc++-6.dll`, `libgcc_s_seh-1.dll` and `libwinpthread-1.dll` next to `chess-uci.exe`.
+
+It can also be driven by hand, one command per line:
+
+```console
+$ ./chess-uci
+uci
+id name ChessEngine
+id author Zendef
+option name Hash type spin default 16 min 1 max 1024
+uciok
+position startpos moves e2e4
+go depth 6
+info depth 1 score cp 10 nodes 24 nps 0 time 0 pv b8c6
+...
+info depth 6 score cp -35 nodes 144110 nps 1162177 time 124 pv d7d5
+bestmove d7d5
+quit
+```
+
+| Command | |
+|---|---|
+| `position startpos` / `position fen <fen>`, then `moves e2e4 ...` | Sets the position |
+| `go depth N` / `go movetime MS` / `go infinite` | Searches to a depth, for a time, or until `stop` |
+| `go wtime MS btime MS [winc MS binc MS] [movestogo N]` | Searches with a clock: about 1/30 of the remaining time plus most of the increment |
+| `setoption name Hash value MB` | Size of the transposition table (1 to 1024 MB) |
+| `isready`, `ucinewgame`, `stop`, `quit` | |
+
+
 ## Command line tools
 
 **`bestmove`** searches a position and prints the progress of each depth, then the best move:
@@ -159,9 +202,10 @@ Nodes searched: 4865609
 ctest --preset release
 ```
 
-- **Unit tests** (GoogleTest, `tests/core`, `tests/search`): FEN parsing, attacks, move generation
-  edge cases (pins, checks, castling rules, en passant), make/unmake, game status, evaluation symmetry,
-  mates found, tactics, and the depth, time and stop limits of the search.
+- **Unit tests** (GoogleTest, `tests/core`, `tests/search`, `tests/uci`): FEN parsing, attacks, move
+  generation edge cases (pins, checks, castling rules, en passant), make/unmake, hashing, draws, game
+  status, evaluation symmetry, mates found, tactics, the depth, time and stop limits of the search, the
+  transposition table, the UCI commands and time management.
 - **Perft regression tests**: node counts of the [six standard positions](https://www.chessprogramming.org/Perft_Results)
   at depth 4 or 5. Any move generation bug changes these numbers.
 
@@ -174,18 +218,20 @@ Every pull request is built and tested by GitHub Actions with GCC and Clang on L
 src/
 ├── core/         Board, moves, move generation, FEN, perft. No dependencies.
 ├── search/       Evaluation and alpha-beta search, built on core
+├── uci/          UCI protocol, for chess GUIs
 ├── gui/          SDL2 app: screens, drawing, bot thread
 ├── bestmove/     Command line search tool
 └── perft/        Command line perft tool
 tests/
 ├── core/         Unit tests of the rules
 ├── search/       Unit tests of the evaluation and search
+├── uci/          Unit tests of the UCI commands and time management
 └── CMakeLists.txt  GoogleTest setup and perft regression tests
 sprites/          Piece images and font used by the app
 tools/            Perft comparison script
 ```
 
-The layers only depend downward: `gui` → `search` → `core`. Everything outside `core` uses the
+The layers only depend downward: `gui` and `uci` → `search` → `core`. Everything outside `core` uses the
 public `chess::Board` interface only, so the board representation can change without touching
 the search or the app.
 
@@ -218,7 +264,7 @@ that depth is dropped and the best move of the last complete one is played.
 - [x] Draw by threefold repetition and insufficient material
 - [x] Zobrist hashing
 - [x] Transposition table
-- [ ] UCI protocol, to play in GUIs like Arena or Cute Chess and against other engines
+- [x] UCI protocol, to play in GUIs like Arena or Cute Chess and against other engines
 - [ ] Move list in standard algebraic notation (SAN) in the app
 - [ ] Better evaluation: pawn structure, mobility, king safety
 - [ ] Bitboard board representation
