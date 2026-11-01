@@ -80,3 +80,9 @@ add_executable(search_tests
 )
 target_link_libraries(search_tests PRIVATE search chess_options GTest::gtest_main)
 gtest_discover_tests(search_tests TEST_PREFIX "search.")
+
+add_executable(uci_tests
+    uci/uci_test.cpp
+)
+target_link_libraries(uci_tests PRIVATE uci chess_options GTest::gtest_main)
+gtest_discover_tests(uci_tests TEST_PREFIX "uci.")

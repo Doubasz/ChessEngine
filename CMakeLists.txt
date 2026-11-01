@@ -74,6 +74,18 @@ add_executable(bestmove src/bestmove/main.cpp)
 target_link_libraries(bestmove PRIVATE search chess_options)
 
 
+# ---- UCI engine: the protocol chess GUIs use to play with engines -------------
+
+find_package(Threads REQUIRED)  # the search runs on its own thread, in the UCI engine and the GUI
+
+add_library(uci STATIC src/uci/uci.cpp)
+target_include_directories(uci PUBLIC src)
+target_link_libraries(uci PUBLIC search Threads::Threads PRIVATE chess_options)
+
+add_executable(chess-uci src/uci/main.cpp)
+target_link_libraries(chess-uci PRIVATE uci chess_options)
+
+
 # ---- Tests --------------------------------------------------------------------
 
 if(CHESS_BUILD_TESTS)
@@ -88,7 +100,6 @@ if(CHESS_BUILD_GUI)
     find_package(SDL2 REQUIRED CONFIG)
     find_package(SDL2_image REQUIRED CONFIG)
     find_package(SDL2_ttf REQUIRED CONFIG)
-    find_package(Threads REQUIRED)  # the bot thinks on its own thread
 
     add_executable(chess
         src/gui/app.cpp
