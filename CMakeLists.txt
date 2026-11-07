@@ -48,6 +48,7 @@ add_library(core STATIC
     src/core/move.cpp
     src/core/movegen.cpp
     src/core/perft.cpp
+    src/core/san.cpp
     src/core/types.cpp
 )
 target_include_directories(core PUBLIC src)
