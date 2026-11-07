@@ -20,7 +20,8 @@ about **2000 Elo**.
 - Complete rules: castling, en passant, promotions, check, checkmate, stalemate, and draws by the
   fifty-move rule, threefold repetition and insufficient material
 - Zobrist hashing: each position has a 64-bit hash, updated with a few XORs per move
-- 0x88 board, legal move generation with make/unmake, FEN import and export, UCI move notation
+- 0x88 board, legal move generation with make/unmake, FEN import and export
+- Move notation in UCI (`e2e4`, for engines) and standard algebraic notation (`e4`, `Nbd2`, `Qxf7#`, for people)
 - About 12 million positions per second in perft (depth 6 from the start position in under 10 seconds)
 
 **Search** (`src/search`)
@@ -47,6 +48,7 @@ about **2000 Elo**.
 - Live view of the bot's search: best move so far as an arrow on the board, evaluation, depth,
   positions searched and speed
 - Click or drag-and-drop to move, legal move hints, last move and check highlights, promotion picker
+- Move list of the game in standard algebraic notation, next to the board
 - Undo and redo, board flipped when playing black
 - The bot thinks on its own thread, so the window stays responsive while it searches
 
@@ -206,7 +208,7 @@ ctest --preset release
 ```
 
 - **Unit tests** (GoogleTest, `tests/core`, `tests/search`, `tests/uci`): FEN parsing, attacks, move
-  generation edge cases (pins, checks, castling rules, en passant), make/unmake, hashing, draws, game
+  generation edge cases (pins, checks, castling rules, en passant), make/unmake, hashing, draws, SAN, game
   status, evaluation symmetry, mates found, tactics, the depth, time and stop limits of the search, the
   transposition table, the UCI commands and time management.
 - **Perft regression tests**: node counts of the [six standard positions](https://www.chessprogramming.org/Perft_Results)
@@ -219,7 +221,7 @@ Every pull request is built and tested by GitHub Actions with GCC and Clang on L
 
 ```
 src/
-├── core/         Board, moves, move generation, FEN, perft. No dependencies.
+├── core/         Board, moves, move generation, FEN, SAN, perft. No dependencies.
 ├── search/       Evaluation and alpha-beta search, built on core
 ├── uci/          UCI protocol, for chess GUIs
 ├── gui/          SDL2 app: screens, drawing, bot thread
@@ -268,7 +270,7 @@ that depth is dropped and the best move of the last complete one is played.
 - [x] Zobrist hashing
 - [x] Transposition table
 - [x] UCI protocol, to play in GUIs like Arena or Cute Chess and against other engines
-- [ ] Move list in standard algebraic notation (SAN) in the app
+- [x] Move list in standard algebraic notation (SAN) in the app
 - [ ] Better evaluation: pawn structure, mobility, king safety
 - [ ] Bitboard board representation
 
