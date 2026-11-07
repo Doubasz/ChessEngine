@@ -44,6 +44,10 @@ class GameScreen : public Screen{
         //  Moves taken back with undo, the last one is replayed first by redo
         std::vector<chess::Move> redoStack;
 
+        //  The moves of the game in SAN (e4, Nf3...), shown in the move list. Kept in step with the
+        //  board by pushMove and popMove, which every move and undo goes through.
+        std::vector<std::string> sanMoves;
+
         BotPlayer bot;
         chess::SearchResult lastBotSearch;  // of the move the bot played last, shown while the player thinks
         bool botHasPlayed = false;
@@ -59,12 +63,15 @@ class GameScreen : public Screen{
         void onBoardReleased(chess::Square s);
         void onPromotionClicked(Point mouse);
         void playMove(chess::Move m);
+        void pushMove(chess::Move m);
+        void popMove();
         void undoMove();
         void redoMove();
         void newGame();
         BoardHighlights highlights() const;
 
         void drawBotPanel(SDL_Renderer* renderer, const Assets& assets) const;
+        void drawMoveList(SDL_Renderer* renderer, const Assets& assets) const;
 
         //  Debug tools, they print to the console
         void printFen();

@@ -1,6 +1,7 @@
 #include "game_screen.h"
 #include "app.h"
 #include "core/perft.h"
+#include "core/san.h"
 #include "def.h"
 #include "theme.h"
 #include <cstdio>
@@ -14,6 +15,14 @@ static const std::chrono::milliseconds MinimumBotDelay(400);
 
 //  Right of the board
 static const SDL_Rect PanelRect = {STARTING_POSX + TILESIZE * BOARD_SIZE + 30, STARTING_POSY, 240, 290};
+
+//  The move list, in the same column: under the bot panel, or the whole height of the board
+//  when there is no bot
+static SDL_Rect moveListRect(bool underBotPanel){
+    const int boardBottom = STARTING_POSY + TILESIZE * BOARD_SIZE;
+    int y = underBotPanel ? PanelRect.y + PanelRect.h + 20 : PanelRect.y;
+    return SDL_Rect{PanelRect.x, y, PanelRect.w, boardBottom - y};
+}
 
 
 
@@ -119,7 +128,7 @@ void GameScreen::updateStatusText(){
 }
 
 void GameScreen::playMove(chess::Move m){
-    board.makeMove(m);
+    pushMove(m);
     redoStack.clear();  // a new move starts a new line, the old one cannot be redone
     onPositionChanged();
 }
@@ -131,7 +140,7 @@ void GameScreen::undoMove(){
 
     do{
         redoStack.push_back(board.lastMove());
-        board.unmakeMove();
+        popMove();
     } while(isBotTurn() && !board.lastMove().isNull());
 
     onPositionChanged();
@@ -141,7 +150,7 @@ void GameScreen::redoMove(){
     if(redoStack.empty()) return;
 
     do{
-        board.makeMove(redoStack.back());
+        pushMove(redoStack.back());
         redoStack.pop_back();
     } while(isBotTurn() && !redoStack.empty());
 
@@ -151,8 +160,21 @@ void GameScreen::redoMove(){
 void GameScreen::newGame(){
     board = chess::Board();
     redoStack.clear();
+    sanMoves.clear();
     botHasPlayed = false;
     onPositionChanged();
+}
+
+//  The SAN is worked out before the move is made: it describes the move in the position it is played from
+
+void GameScreen::pushMove(chess::Move m){
+    sanMoves.push_back(chess::toSan(board, m));
+    board.makeMove(m);
+}
+
+void GameScreen::popMove(){
+    board.unmakeMove();
+    sanMoves.pop_back();
 }
 
 void GameScreen::printMoves(){
@@ -343,6 +365,52 @@ void GameScreen::drawBotPanel(SDL_Renderer* renderer, const Assets& assets) cons
 
 
 
+// ---- Move list ----------------------------------------------------------------
+
+//  One row per move number, white's move then black's. The game always starts from the starting
+//  position, so white moves first and row i is move i + 1. When the list is longer than the
+//  panel, the last rows are shown so the latest move is always in view.
+
+void GameScreen::drawMoveList(SDL_Renderer* renderer, const Assets& assets) const{
+    const int padding = 18, rowH = 26, numberW = 44;
+    SDL_Rect panel = moveListRect(setup.vsBot);
+    drawRect(renderer, panel, theme::Panel);
+
+    int x = panel.x + padding, w = panel.w - 2 * padding;
+    int y = panel.y + padding;
+
+    drawText(renderer, assets.buttonFont, "Moves", theme::Text, SDL_Rect{x, y, w, 26}, Align::Left);
+    y += 34;
+    drawRect(renderer, SDL_Rect{x, y, w, 1}, theme::Button);
+    y += 10;
+
+    if(sanMoves.empty()){
+        drawText(renderer, assets.infoFont, "No moves yet", theme::PanelLabel, SDL_Rect{x, y, w, rowH}, Align::Left);
+        return;
+    }
+
+    size_t rows = (sanMoves.size() + 1) / 2;
+    size_t visibleRows = size_t((panel.y + panel.h - padding - y) / rowH);
+    size_t firstRow = rows > visibleRows ? rows - visibleRows : 0;
+    int moveW = (w - numberW) / 2;
+
+    for(size_t row = firstRow; row < rows; row++, y += rowH){
+        drawText(renderer, assets.infoFont, std::to_string(row + 1) + ".", theme::PanelLabel,
+                 SDL_Rect{x, y, numberW, rowH}, Align::Left);
+
+        for(size_t side = 0; side < 2; side++){
+            size_t i = row * 2 + side;
+            if(i >= sanMoves.size()) break;
+
+            SDL_Rect cell = {x + numberW + int(side) * moveW, y, moveW, rowH};
+            if(i + 1 == sanMoves.size()) drawRect(renderer, SDL_Rect{cell.x - 6, cell.y + 1, cell.w, cell.h - 2}, theme::Button);
+            drawText(renderer, assets.buttonFont, sanMoves[i], theme::Text, SDL_Rect{cell.x, cell.y, cell.w - 12, cell.h}, Align::Left);
+        }
+    }
+}
+
+
+
 // ---- Screen -------------------------------------------------------------------
 
 void GameScreen::handleEvent(const SDL_Event& event){
@@ -396,6 +464,7 @@ void GameScreen::draw(SDL_Renderer* renderer){
 
     drawButtons(renderer, buttons, assets.buttonFont);
     if(setup.vsBot) drawBotPanel(renderer, assets);
+    drawMoveList(renderer, assets);
 
     if(!pendingPromotion.isNull()){
         drawPromotion(renderer, board.sideToMove(), mouse, assets);
