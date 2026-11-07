@@ -6,7 +6,8 @@
 
 A chess engine written from scratch in C++17, with an SDL2 desktop app to play against it or
 against a friend, and a UCI interface to use it in any chess GUI. The engine has its own move generator, verified against the standard perft
-positions, and an alpha-beta search that shows what it is thinking while it plays.
+positions, and an alpha-beta search that shows what it is thinking while it plays. It plays at
+about **2000 Elo**.
 
 | Playing against the bot | Hints and check |
 |:---:|:---:|
@@ -38,6 +39,8 @@ positions, and an alpha-beta search that shows what it is thinking while it play
   against people or other engines
 - Time management from the game clock (`wtime`/`btime`, increments, `movestogo`), fixed time,
   fixed depth or infinite analysis, and a configurable table size (`Hash` option)
+- Rated about 2000 Elo, measured with cutechess-cli in games against Stockfish limited in strength
+  (`UCI_LimitStrength`, `UCI_Elo`) at 60 seconds per game plus 0.6 seconds per move
 
 **Desktop app** (`src/gui`)
 - Play against the bot (easy, medium, hard) with either color, or against a friend on the same computer
