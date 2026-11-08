@@ -7,6 +7,7 @@ build/
 # Binaries built in-tree by the makefile
 /chess
 /perft
+/engines
 
 # Python
 __pycache__/
