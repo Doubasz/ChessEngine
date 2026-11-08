@@ -32,6 +32,8 @@ about **2000 Elo**.
 - Move ordering: the best move from the table first, then MVV-LVA (most valuable victim, least
   valuable attacker) and killer moves
 - Evaluation by material and piece-square tables, with a separate king table for the endgame
+- Pawn structure: penalties for doubled and isolated pawns, and a bonus for passed pawns that
+  grows as they get closer to promotion
 - Mate scores counted in moves, so it plays the fastest mate and delays its own
 - Repeated positions scored as draws, so it avoids repetitions when winning and seeks them when losing
 
@@ -209,7 +211,7 @@ ctest --preset release
 
 - **Unit tests** (GoogleTest, `tests/core`, `tests/search`, `tests/uci`): FEN parsing, attacks, move
   generation edge cases (pins, checks, castling rules, en passant), make/unmake, hashing, draws, SAN, game
-  status, evaluation symmetry, mates found, tactics, the depth, time and stop limits of the search, the
+  status, evaluation symmetry, pawn structure, mates found, tactics, the depth, time and stop limits of the search, the
   transposition table, the UCI commands and time management.
 - **Perft regression tests**: node counts of the [six standard positions](https://www.chessprogramming.org/Perft_Results)
   at depth 4 or 5. Any move generation bug changes these numbers.
