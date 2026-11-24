@@ -64,6 +64,41 @@ bool Board::isSquareAttacked(Square s, Color by) const {
 }
 
 
+int Board::mobility(Square s) const {
+    Piece piece = squares_[s];
+    if (piece == NoPiece) return 0;
+    Color us = colorOf(piece);
+
+    int count = 0;
+    auto reachable = [&](Square to) {
+        return isOnBoard(to) && (squares_[to] == NoPiece || colorOf(squares_[to]) != us);
+    };
+    auto step = [&](const auto& offsets) {
+        for (int offset : offsets) {
+            if (reachable(s + offset)) count++;
+        }
+    };
+    auto slide = [&](const auto& directions) {
+        for (int d : directions) {
+            for (Square to = s + d; reachable(to); to = to + d) {
+                count++;
+                if (squares_[to] != NoPiece) break;
+            }
+        }
+    };
+
+    switch (typeOf(piece)) {
+        case Knight: step(KnightOffsets); break;
+        case King: step(KingOffsets); break;
+        case Bishop: slide(BishopDirections); break;
+        case Rook: slide(RookDirections); break;
+        case Queen: slide(BishopDirections); slide(RookDirections); break;
+        default: break;
+    }
+    return count;
+}
+
+
 //  A move is legal when, after playing it, our king is not attacked. Playing it and checking
 //  covers every special case at once: pins, moving into check, en passant discovered checks.
 

@@ -59,6 +59,12 @@ public:
     bool hasInsufficientMaterial() const;
 
     bool isSquareAttacked(Square s, Color by) const;
+
+    //  How many squares the knight, bishop, rook, queen or king on s reaches: empty squares and
+    //  enemy pieces, a slider stopping at the first piece in each direction. Pins and checks are
+    //  ignored, it measures how active the piece is rather than its legal moves. 0 for a pawn
+    //  or an empty square.
+    int mobility(Square s) const;
     bool inCheck() const { return isSquareAttacked(kings_[sideToMove_], ~sideToMove_); }
 
     //  Fills moves with every legal move of the side to move. Not const: each candidate move

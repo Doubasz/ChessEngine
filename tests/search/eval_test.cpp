@@ -157,3 +157,48 @@ TEST(PawnStructure, IsPartOfTheEvaluation) {
     //  The pawn table gives 0 on e3 and -10 on f3, the rest of the gap is the pawn structure
     EXPECT_EQ(evaluate(healthy) - evaluate(doubled), structureGap - 10);
 }
+
+
+// ---- Mobility -------------------------------------------------------------------
+
+TEST(MobilityEval, EqualInTheStartingPosition) {
+    EXPECT_EQ(mobility(Board(), White), mobility(Board(), Black));
+}
+
+TEST(MobilityEval, ActivePiecesScoreHigher) {
+    //  A bishop on the long diagonal against one shut in by its own pawn
+    EXPECT_GT(mobility(boardFrom("4k3/8/8/8/8/8/2P5/B3K3 w - - 0 1"), White),
+              mobility(boardFrom("4k3/8/8/8/8/8/1P6/B3K3 w - - 0 1"), White));
+
+    //  A knight in the center against one in the corner
+    EXPECT_GT(mobility(boardFrom("4k3/8/8/8/3N4/8/8/4K3 w - - 0 1"), White),
+              mobility(boardFrom("4k3/8/8/8/8/8/8/N3K3 w - - 0 1"), White));
+
+    //  A rook on an open file against one behind its pawns
+    EXPECT_GT(mobility(boardFrom("4k3/8/8/8/8/8/1PP5/R3K3 w - - 0 1"), White),
+              mobility(boardFrom("4k3/8/8/8/8/8/PP6/R3K3 w - - 0 1"), White));
+}
+
+TEST(MobilityEval, SameForBothColors) {
+    for (const char* fen : {
+             "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w - - 0 1",
+             "4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1",
+             "4k3/8/8/8/8/8/1P6/B3K3 w - - 0 1",
+         }) {
+        Board board = boardFrom(fen);
+        Board flipped = boardFrom(colorFlipped(fen));
+        EXPECT_EQ(mobility(board, White), mobility(flipped, Black)) << fen;
+        EXPECT_EQ(mobility(board, Black), mobility(flipped, White)) << fen;
+    }
+}
+
+TEST(MobilityEval, IsPartOfTheEvaluation) {
+    //  The same pieces but for the white pawn, b2 shutting in the bishop or c2 leaving it free.
+    //  The pawn table gives 10 on both and the pawn structure is the same, so the whole gap in
+    //  the evaluation is the bishop's mobility.
+    Board shut = boardFrom("4k3/8/8/8/8/8/1P6/B3K3 w - - 0 1");
+    Board free = boardFrom("4k3/8/8/8/8/8/2P5/B3K3 w - - 0 1");
+    int mobilityGap = mobility(free, White) - mobility(shut, White);
+    EXPECT_GT(mobilityGap, 0);
+    EXPECT_EQ(evaluate(free) - evaluate(shut), mobilityGap);
+}
