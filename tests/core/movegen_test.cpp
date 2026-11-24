@@ -34,6 +34,47 @@ bool hasMove(Board& board, const std::string& uci) {
 }  // namespace
 
 
+// ---- mobility -----------------------------------------------------------------
+
+TEST(Mobility, PiecesOnAnEmptyBoard) {
+    Board board = boardFrom("7k/8/8/8/3N4/8/8/K7 w - - 0 1");
+    EXPECT_EQ(board.mobility(D4), 8);
+
+    EXPECT_EQ(boardFrom("7k/8/8/8/8/8/8/K6N w - - 0 1").mobility(H1), 2);  // a knight in the corner
+    EXPECT_EQ(boardFrom("7k/8/8/8/3B4/8/8/1K6 w - - 0 1").mobility(D4), 13);
+    EXPECT_EQ(boardFrom("7k/8/8/8/3R4/8/8/K7 w - - 0 1").mobility(D4), 14);
+    EXPECT_EQ(boardFrom("7k/8/8/8/3K4/8/8/8 w - - 0 1").mobility(D4), 8);
+}
+
+TEST(Mobility, SlidersStopAtTheFirstPiece) {
+    //  The queen's diagonal to h8 ends on the black king, which counts, the one to a1 on the white
+    //  king, which does not: 7 on the file, 7 on the rank, b2 c3, e5 f6 g7 h8, a7 b6 c5, e3 f2 g1
+    EXPECT_EQ(boardFrom("7k/8/8/8/3Q4/8/8/K7 w - - 0 1").mobility(D4), 26);
+
+    //  The rook reaches a2 below its own pawn, and b1 and the black knight on c1
+    EXPECT_EQ(boardFrom("4k3/8/8/8/8/P7/8/R1n1K3 w - - 0 1").mobility(A1), 3);
+}
+
+TEST(Mobility, StartingPosition) {
+    Board board;
+    EXPECT_EQ(board.mobility(B1), 2);
+    EXPECT_EQ(board.mobility(G8), 2);
+    EXPECT_EQ(board.mobility(A1), 0);
+    EXPECT_EQ(board.mobility(C1), 0);
+    EXPECT_EQ(board.mobility(D1), 0);
+    EXPECT_EQ(board.mobility(E1), 0);
+    EXPECT_EQ(board.mobility(E2), 0);  // pawns have no mobility
+    EXPECT_EQ(board.mobility(E4), 0);  // nor empty squares
+}
+
+TEST(Mobility, IgnoresPins) {
+    //  The knight on e2 is pinned to its king and has no legal move, but it still controls 6 squares
+    Board board = boardFrom("4r1k1/8/8/8/8/8/4N3/4K3 w - - 0 1");
+    EXPECT_EQ(board.mobility(E2), 6);
+    EXPECT_FALSE(hasMove(board, "e2c3"));
+}
+
+
 // ---- isSquareAttacked ---------------------------------------------------------
 
 TEST(Attacks, PawnsAttackDiagonallyForward) {
