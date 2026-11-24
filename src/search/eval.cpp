@@ -106,6 +106,25 @@ int tableIndex(Color c, Square s) {
 }
 
 
+// ---- Mobility -------------------------------------------------------------------
+//
+//  Per square reached, more for the minor pieces: one more square matters more to a knight that
+//  reaches 8 at most than to a queen that reaches 27. Counted from the average number of squares
+//  each piece reaches in a game, so a piece on an ordinary square gets about 0 and the piece-square
+//  tables keep their meaning.
+
+constexpr std::array<int, 7> MobilityWeight = {0, 0, 4, 4, 2, 1, 0};
+constexpr std::array<int, 7> AverageMobility = {0, 0, 4, 6, 6, 12, 0};
+
+int pieceMobility(const Board& board, Square s, PieceType type) {
+    return MobilityWeight[type] * (board.mobility(s) - AverageMobility[type]);
+}
+
+constexpr bool hasMobilityBonus(PieceType type) {
+    return type == Knight || type == Bishop || type == Rook || type == Queen;
+}
+
+
 // ---- Pawn structure -------------------------------------------------------------
 
 constexpr int DoubledPawnPenalty = 15;  // for each pawn more than one on a file
@@ -184,6 +203,20 @@ int pawnStructure(const Board& board, Color c) {
     return pawnScore(pawnMapOf(board), c);
 }
 
+int mobility(const Board& board, Color c) {
+    int score = 0;
+    for (int rank = 0; rank < 8; rank++) {
+        for (int file = 0; file < 8; file++) {
+            Square s = makeSquare(file, rank);
+            Piece piece = board.pieceAt(s);
+            if (piece != NoPiece && colorOf(piece) == c && hasMobilityBonus(typeOf(piece))) {
+                score += pieceMobility(board, s, typeOf(piece));
+            }
+        }
+    }
+    return score;
+}
+
 int evaluate(const Board& board) {
     std::array<int, 2> score{};
 
@@ -201,6 +234,7 @@ int evaluate(const Board& board) {
             Color c = colorOf(piece);
             PieceType type = typeOf(piece);
             score[c] += PieceValues[type] + (*Tables[type])[tableIndex(c, s)];
+            if (hasMobilityBonus(type)) score[c] += pieceMobility(board, s, type);
 
             if (type == Pawn) pawns.add(c, s);
             else if (type == Queen) hasQueen[c] = true;
